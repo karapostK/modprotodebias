@@ -22,7 +22,7 @@ def fetch_best_in_sweep(sweep_id, good_faith=True, preamble_path=None, project_b
 
     @param sweep_id:
     @param good_faith:  whether to look only at local folders or not
-    @param preamble_path: if specified it will replace the part that precedes hassaku (e.g. /home/giovanni/hassaku... -> /something_else/hassaku/....
+    @param preamble_path: if specified it will replace the part that precedes hassaku (e.g. /home/giovanni/hassaku... -> /something_else/protofair/....
     @param project_base_directory: where is the project directory (either relative from where the code is running or in absolute path.
     @return:
     """
@@ -88,9 +88,9 @@ def fetch_best_in_sweep(sweep_id, good_faith=True, preamble_path=None, project_b
 
     if preamble_path:
         pre, post = best_run_config['dataset_path'].split('hassaku/', 1)
-        best_run_config['dataset_path'] = os.path.join(preamble_path, 'hassaku', post)
+        best_run_config['dataset_path'] = os.path.join(preamble_path, 'protofair', post)
         pre, post = best_run_config['data_path'].split('hassaku/', 1)
-        best_run_config['data_path'] = os.path.join(preamble_path, 'hassaku', post)
+        best_run_config['data_path'] = os.path.join(preamble_path, 'protofair', post)
 
     # Running from non-main folder
     best_run_config['model_save_path'] = os.path.join(project_base_directory, best_run_config['model_save_path'])
