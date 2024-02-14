@@ -40,7 +40,7 @@ class RecDataset(data.Dataset):
         self.n_items = None
 
         self.user_to_user_group = None  # optional
-        self.n_user_groups = 0  # optional
+        self.n_user_groups = None  # optional
 
         self.lhs = None
 
@@ -53,7 +53,7 @@ class RecDataset(data.Dataset):
                      f'- n_users: {self.n_users} \n'
                      f'- n_items: {self.n_items} \n'
                      f'- n_interactions: {len(self.lhs)} \n'
-                     f'- n_user_groups: {self.n_user_groups} \n')
+                     f'- n_user_groups: {len(self.n_user_groups)} \n')
 
     def _load_data(self):
         logging.info('Loading data')
@@ -64,12 +64,18 @@ class RecDataset(data.Dataset):
         self.n_users = len(user_idxs)
         self.n_items = len(item_idxs)
 
-        # Optional grouping of the users
-        if 'group_idx' in user_idxs.columns:
-            self.user_to_user_group = user_idxs[['user_idx', 'group_idx']].set_index('user_idx').sort_index().group_idx
-            self.user_to_user_group = torch.Tensor(self.user_to_user_group)
+        grouping_columns = [column for column in user_idxs.columns if column.endswith('group_idx')]
 
-            self.n_user_groups = user_idxs.group_idx.nunique()
+        if len(grouping_columns) > 1:
+            self.user_to_user_group = dict()
+            self.n_user_groups = dict()
+            for grouping_column in grouping_columns:
+                grouping_column_name = grouping_column.split('_group_idx')[0]
+                mapping = user_idxs[['user_idx', grouping_column]].set_index('user_idx').sort_index()[grouping_column]
+                mapping = torch.tensor(mapping)
+                self.user_to_user_group[grouping_column_name] = mapping
+                self.n_user_groups[grouping_column_name] = user_idxs[grouping_column].nunique()
+
         self.lhs = self._load_lhs(self.split_set)
 
         logging.info('End loading data')
