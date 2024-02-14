@@ -1,0 +1,21 @@
+name: protofair
+channels:
+  - defaults
+  - pytorch
+  - conda-forge
+dependencies:
+  - python=3.9
+  - pytorch
+  - scipy
+  - pyyaml
+  - pandas
+  - tqdm
+  - requests
+  - matplotlib
+  - wandb
+  - scp
+  - scikit-learn
+  - jupyter
+  - pytorch-cuda=11.8
+  - paramiko
+prefix: /home/alessandro/anaconda3/envs/protofair
