@@ -20,6 +20,8 @@ class FullEvaluator:
     with index -1 that is the "ALL" user group.
     """
     K_VALUES = [5, 10, 50, 100]  # K value for the evaluation metrics
+    METRIC_NAMES = ['precision@{}', 'recall@{}', 'ndcg@{}']
+    METRICS = [precision_at_k_batch, recall_at_k_batch, ndcg_at_k_batch]
 
     def __init__(self, aggr_by_group: bool = True, n_groups: int = 0, user_to_user_group: dict = None):
         """
@@ -79,11 +81,7 @@ class FullEvaluator:
         for k in k_sorted_values:
             idx_topk = idx_topk[:, :k]
 
-            for metric_name, metric in \
-                    zip(
-                        ['precision@{}', 'recall@{}', 'ndcg@{}'],
-                        [precision_at_k_batch, recall_at_k_batch, ndcg_at_k_batch]
-                    ):
+            for metric_name, metric in zip(self.METRIC_NAMES, self.METRICS):
 
                 metric_result = metric(
                     logits=logits,
