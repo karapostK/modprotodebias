@@ -4,7 +4,7 @@ import shutil
 
 import pandas as pd
 
-from data.data_utils import LOG_FILT_DATA_PATH, print_and_log, download_movielens_dataset, k_core_filtering, \
+from data.data_utils import LOG_FILT_DATA_PATH, print_and_log, download_movielens1m_dataset, k_core_filtering, \
     create_index, split_temporal_order_ratio_based
 
 parser = argparse.ArgumentParser()
@@ -20,7 +20,7 @@ force_download = args.force_download
 if not os.path.exists('./raw_dataset') or force_download:
     if force_download and os.path.exists('./raw_dataset'):
         shutil.rmtree('./raw_dataset')
-    download_movielens_dataset('./', '1m')
+    download_movielens1m_dataset('./', '1m')
 
 if os.path.exists('./processed_dataset'):
     shutil.rmtree('./processed_dataset')
@@ -58,9 +58,13 @@ print_and_log(log_filt_data_file, len(test_data), test_data.user.nunique(), test
 log_filt_data_file.close()
 
 # Adding grouping information
-users = pd.read_csv(user_info_path, sep='::', usecols=[0, 1], names=['user', 'gender'], engine='python')
+# Gender
+users = pd.read_csv(user_info_path, sep='::', usecols=[0, 1, 2], names=['user', 'gender', 'age'], engine='python')
 user_idxs = user_idxs.merge(users)
-user_idxs['group_idx'] = (user_idxs.gender == 'F').astype(int)  # 0 is Male 1 is Female
+
+user_idxs['gender_group_idx'] = (user_idxs.gender == 'F').astype(int)  # 0 is Male 1 is Female
+# Age
+user_idxs['age_group_idx'] = pd.cut(user_idxs.age, bins=[0, 17, 24, 34, 44, 49, 55, 59], labels=False)
 
 # Saving locally
 print('Saving data to ./processed_dataset')
