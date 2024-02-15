@@ -9,11 +9,10 @@ from paramiko import SSHClient
 from scp import SCPClient
 
 from conf.conf_parser import parse_conf_file
-from wandb_conf import ENTITY_NAME, PROJECT_NAME
 
 
 def fetch_best_in_sweep(sweep_id, good_faith=True, preamble_path=None, project_base_directory: str = '..',
-                        wandb_entitiy_name=ENTITY_NAME, wandb_project_name=PROJECT_NAME, position: int = 0):
+                        wandb_entitiy_name=None, wandb_project_name=None):
     """
     It returns the configuration of the best model of a specific sweep.
     However, since private wandb projects can only be accessed by 1 member, sharing of the models is basically impossible.
@@ -42,12 +41,7 @@ def fetch_best_in_sweep(sweep_id, good_faith=True, preamble_path=None, project_b
         api = wandb.Api()
         sweep = api.sweep(f"{wandb_entitiy_name}/{wandb_project_name}/{sweep_id}")
 
-        if position != 0:
-            runs = sweep.runs
-            sorted_runs = sorted(runs, key=lambda run: run.summary.get('max_optimizing_metric', 0), reverse=True)
-            best_run = sorted_runs[position]
-        else:
-            best_run = sweep.best_run()
+        best_run = sweep.best_run()
 
         best_run_host = best_run.metadata['host']
         best_run_config = json.loads(best_run.json_config)
