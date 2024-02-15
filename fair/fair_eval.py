@@ -14,12 +14,16 @@ class FairEvaluator:
     It computes the recall for each user group and the Balanced/Unbalanced Accuracy.
     """
 
-    def __init__(self, fair_attribute: str, n_groups: int, user_to_user_group: torch.Tensor, device: str = 'cpu'):
+    def __init__(self, fair_attribute: str, dataset_name: str, n_groups: int, user_to_user_group: torch.Tensor,
+                 device: str = 'cpu'):
         """
         @param n_groups: How many user groups are there in the dataset
         @param user_to_user_group: Maps the user_idx to group_idx. Shape is [n_users]
         """
         assert fair_attribute in ['age', 'gender'], f'Fair attribute {fair_attribute} not recognized'
+        assert dataset_name in ['ml1m', 'lfm2bdemobias'], f'Dataset {dataset_name} not recognized'
+
+        self.dataset_name = dataset_name
         self.fair_attribute = fair_attribute
         self.device = device
         self.n_groups = n_groups
@@ -66,8 +70,8 @@ class FairEvaluator:
         Recall per group is defined as # TP (for that group) / # Entries in the group
         Unbalanced Accuracy is defined as # TP / # Total Entries
         Balanced Accuracy is defined as the mean of the recall per group (e.g. 0.5 Recall_Group_0 + 0.5 Recall_Group_1)
+        NB. For LFM2BDemobias - Age the last group contains the outliers and hence is ignored from accuracy/balanced accuracy.
         """
-
         metrics_dict = dict()
         metrics_dict['balanced_acc'] = 0
         metrics_dict['unbalanced_acc'] = 0
@@ -75,11 +79,17 @@ class FairEvaluator:
         for group_idx in self.group_metrics:
             metrics_dict[f'recall_group_{group_idx}'] = self.group_metrics[group_idx]['TP'] / self.n_entries[group_idx]
 
-            metrics_dict['balanced_acc'] += metrics_dict[f'recall_group_{group_idx}'] / self.n_groups
-
+            if self.dataset_name == 'lfm2bdemobias' and self.fair_attribute == 'age' and group_idx == self.n_groups - 1:
+                continue
+            metrics_dict['balanced_acc'] += metrics_dict[f'recall_group_{group_idx}']
             metrics_dict['unbalanced_acc'] += self.group_metrics[group_idx]['TP']
 
-        metrics_dict['unbalanced_acc'] /= self.n_entries[-1]
+        if self.dataset_name == 'lfm2bdemobias' and self.fair_attribute == 'age':
+            metrics_dict['balanced_acc'] /= (self.n_groups - 1)
+            metrics_dict['unbalanced_acc'] /= (self.n_entries[-1] - self.n_entries[self.n_groups - 1])
+        else:
+            metrics_dict['balanced_acc'] /= self.n_groups
+            metrics_dict['unbalanced_acc'] /= self.n_entries[-1]
 
         self._reset_internal_dict()
 
@@ -121,9 +131,9 @@ def evaluate(rec_model: PrototypeWrapper, attr_model: NeuralHead,
             rec_evaluator.eval_batch(u_idxs, rec_scores, labels)
 
             # Fairness Evaluation
-            atr_scores = attr_model(u_p)
+            attr_scores = attr_model(u_p)
 
-            fair_evaluator.eval_batch(u_idxs, atr_scores)
+            fair_evaluator.eval_batch(u_idxs, attr_scores)
 
     rec_results = rec_evaluator.get_results()
     fair_results = fair_evaluator.get_results()

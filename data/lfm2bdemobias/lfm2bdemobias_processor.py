@@ -50,7 +50,7 @@ bins_boundaries = [round(x) for x in bins_boundaries]
 age_groups = pd.cut(user_idxs[valid_users].age, bins=bins_boundaries, labels=False)
 
 user_idxs.loc[valid_users, 'age_group_idx'] = age_groups
-user_idxs.loc[~valid_users, 'age_group_idx'] = len(bins_boundaries)
+user_idxs.loc[~valid_users, 'age_group_idx'] = len(bins_boundaries) - 1
 user_idxs['age_group_idx'] = user_idxs['age_group_idx'].astype(int)
 
 # Saving locally
