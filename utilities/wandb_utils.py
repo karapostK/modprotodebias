@@ -11,54 +11,70 @@ from scp import SCPClient
 from conf.conf_parser import parse_conf_file
 
 
-def fetch_best_in_sweep(sweep_id, good_faith=True, preamble_path=None, project_base_directory: str = '..',
-                        wandb_entitiy_name=None, wandb_project_name=None):
+def fetch_best_in_sweep(sweep_id: str, wandb_entity_name: str = None, wandb_project_name: str = None,
+                        good_faith: bool = True, preamble_path: str = None,
+                        project_base_directory: str = '..'):
     """
-    It returns the configuration of the best model of a specific sweep.
-    However, since private wandb projects can only be accessed by 1 member, sharing of the models is basically impossible.
-    The alternative, with good_faith=True it simply looks at the local directory with that specific sweep and hopes there is a model there.
-    If there are multiple models then it raises an error.
+    Utility function to fetch the configuration of the best model from a sweep. It assumes that the sweep has been run
+    with method = 'bayes'. It also adapts the paths to the local directory.
 
-    @param sweep_id:
-    @param good_faith:  whether to look only at local folders or not
-    @param preamble_path: if specified it will replace the part that precedes hassaku (e.g. /home/giovanni/hassaku... -> /something_else/protofair/....
-    @param project_base_directory: where is the project directory (either relative from where the code is running or in absolute path.
-    @return:
+    If good_faith is False, it will connect to the wandb API, fetch the configuration, and possibly import the model
+    from one of the servers.
+    If good_faith is True, it will look for the model in the local directory. It will assume that for a specific sweep id
+    there only one model (i.e. the best one). If there are more than one, it will raise an error.
+
+    :param sweep_id: The id of the sweep
+    :param wandb_entity_name: The name of the wandb entity
+    :param wandb_project_name: The name of the wandb project
+    :param good_faith: Whether to trust that the local directory has the best model
+    :param preamble_path: Prefix to add to the dataset and data paths. If none, it will not change the paths.
+    :param project_base_directory: The base directory of the project. It will be used to store the model.
     """
+
     if good_faith:
-        sweep_path = glob.glob(f'{project_base_directory}/saved_models/*/sweeps/{sweep_id}')
-        if len(sweep_path) > 1:
+
+        glob_path = f'{project_base_directory}/saved_models/*/sweeps/{sweep_id}'
+
+        glob_results = glob.glob(glob_path)
+        if len(glob_results) == 0:
+            raise FileNotFoundError(f'The sweep was not found in the local directory {glob_path}')
+        elif len(glob_results) > 1:
             raise ValueError('There should not be two sweeps with the same id')
-        sweep_path = sweep_path[0]
-        best_run_path = os.listdir(sweep_path)
-        if len(best_run_path) > 1:
+
+        sweep_path = glob_results[0]
+        best_run_paths = os.listdir(sweep_path)
+
+        if len(best_run_paths) == 0:
+            raise FileNotFoundError(f'The sweep does not contain any runs')
+        elif len(best_run_paths) > 1:
             raise ValueError('There are more than 1 runs in the project, which one is the best?')
 
-        best_run_path = best_run_path[0]
+        best_run_path = best_run_paths[0]
         best_run_config = parse_conf_file(os.path.join(sweep_path, best_run_path, 'conf.yml'))
 
     else:
         api = wandb.Api()
-        sweep = api.sweep(f"{wandb_entitiy_name}/{wandb_project_name}/{sweep_id}")
+        sweep = api.sweep(f"{wandb_entity_name}/{wandb_project_name}/{sweep_id}")
 
         best_run = sweep.best_run()
 
         best_run_host = best_run.metadata['host']
         best_run_config = json.loads(best_run.json_config)
+
         if '_items' in best_run_config:
             best_run_config = best_run_config['_items']['value']
         else:
             best_run_config = {k: v['value'] for k, v in best_run_config.items()}
 
-        best_run_model_path = best_run_config['model_path']
-        print('Best Run Model Path: ', best_run_model_path)
+        best_run_path = best_run_config['model_path']
+        print('Best Run Model Path: ', best_run_path)
 
-        # Create base directory if absent
-        local_path = os.path.join(project_base_directory, best_run_model_path)
+        best_run_local_path = os.path.join(project_base_directory, best_run_path)
+
         current_host = socket.gethostname()
 
-        if not os.path.isdir(local_path):
-            Path(local_path).mkdir(parents=True, exist_ok=True)
+        if not os.path.isdir(best_run_local_path):
+            Path(best_run_local_path).mkdir(parents=True, exist_ok=True)
 
             if current_host != best_run_host:
                 print(f'Importing Model from {best_run_host}')
@@ -74,12 +90,14 @@ def fetch_best_in_sweep(sweep_id, good_faith=True, preamble_path=None, project_b
                         if best_run_host == 'passionpit.cp.jku.at':
                             dir_path = os.path.join(dir_path, "PycharmProjects")
 
-                        scp.get(remote_path=os.path.join(dir_path, best_run_model_path),
-                                local_path=os.path.dirname(local_path),
+                        scp.get(remote_path=os.path.join(dir_path, best_run_path),
+                                local_path=os.path.dirname(best_run_local_path),
                                 recursive=True)
             else:
-                raise FileNotFoundError(f"The model should be local but it was not found! Path is: {local_path}")
+                raise FileNotFoundError(
+                    f"The model should be local but it was not found! Path is: {best_run_local_path}")
 
+    # Adapt Dataset path
     if preamble_path:
         pre, post = best_run_config['dataset_path'].split('hassaku/', 1)
         best_run_config['dataset_path'] = os.path.join(preamble_path, 'protofair', post)
