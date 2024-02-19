@@ -23,7 +23,7 @@ class FullEvaluator:
     METRIC_NAMES = ['precision@{}', 'recall@{}', 'ndcg@{}']
     METRICS = [precision_at_k_batch, recall_at_k_batch, ndcg_at_k_batch]
 
-    def __init__(self, aggr_by_group: bool = True, n_groups: int = 0, user_to_user_group: dict = None):
+    def __init__(self, aggr_by_group: bool = True, n_groups: int = 0, user_to_user_group: torch.Tensor = None):
         """
         :param aggr_by_group: Whether to aggregate the results for all users within a group (with mean) or return the
         vectors
@@ -38,6 +38,9 @@ class FullEvaluator:
         self.n_entries = None
 
         self._reset_internal_dict()
+
+    def to(self, device: str):
+        self.user_to_user_group = self.get_user_to_user_group().to(device)
 
     def _reset_internal_dict(self):
         self.group_metrics = defaultdict(lambda: defaultdict(int) if self.aggr_by_group else defaultdict(list))
@@ -96,7 +99,7 @@ class FullEvaluator:
 
                 # Collect results for specific user groups
                 if self.get_n_groups() > 0:
-                    batch_user_to_user_groups = self.get_user_to_user_group().to(u_idxs.device)[u_idxs]
+                    batch_user_to_user_groups = self.get_user_to_user_group()[u_idxs]
                     for group_idx in range(self.n_groups):
                         group_metric_idx = np.where(batch_user_to_user_groups.cpu() == group_idx)
                         self._add_entry_to_dict(group_idx, metric_name.format(k), metric_result[group_metric_idx])

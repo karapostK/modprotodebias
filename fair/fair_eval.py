@@ -14,8 +14,7 @@ class FairEvaluator:
     It computes the recall for each user group and the Balanced/Unbalanced Accuracy.
     """
 
-    def __init__(self, fair_attribute: str, dataset_name: str, n_groups: int, user_to_user_group: torch.Tensor,
-                 device: str = 'cpu'):
+    def __init__(self, fair_attribute: str, dataset_name: str, n_groups: int, user_to_user_group: torch.Tensor):
         """
         @param n_groups: How many user groups are there in the dataset
         @param user_to_user_group: Maps the user_idx to group_idx. Shape is [n_users]
@@ -25,9 +24,8 @@ class FairEvaluator:
 
         self.dataset_name = dataset_name
         self.fair_attribute = fair_attribute
-        self.device = device
         self.n_groups = n_groups
-        self.user_to_user_group = user_to_user_group.to(self.device)
+        self.user_to_user_group = user_to_user_group
 
         self.group_metrics = None
         self.n_entries = None
@@ -43,6 +41,9 @@ class FairEvaluator:
     def _reset_internal_dict(self):
         self.group_metrics = defaultdict(lambda: defaultdict(int))
         self.n_entries = defaultdict(int)
+
+    def to(self, device: str):
+        self.user_to_user_group = self.user_to_user_group.to(device)
 
     def eval_batch(self, u_idxs: torch.Tensor, logits: torch.Tensor):
         """
@@ -96,17 +97,19 @@ class FairEvaluator:
         return metrics_dict
 
 
-def evaluate(rec_model: PrototypeWrapper, attr_model: NeuralHead,
-             eval_loader: torch.utils.data.DataLoader, rec_evaluator: FullEvaluator, fair_evaluator: FairEvaluator,
-             repr_perturb: RepresentationPerturb = None,
+def evaluate(rec_model: PrototypeWrapper, neural_head: NeuralHead, eval_loader: torch.utils.data.DataLoader,
+             rec_evaluator: FullEvaluator, fair_evaluator: FairEvaluator, repr_perturb: RepresentationPerturb = None,
              device: str = 'cpu', verbose: bool = False):
-    attr_model.eval()
+
+    neural_head.eval()
 
     if verbose:
         iterator = tqdm(eval_loader)
     else:
         iterator = eval_loader
 
+    fair_evaluator.to(device)
+    rec_evaluator.to(device)
     with torch.no_grad():
         # We generate the item representation once (usually the bottleneck of evaluation)
         i_idxs = torch.arange(eval_loader.dataset.n_items).to(device)
@@ -131,12 +134,12 @@ def evaluate(rec_model: PrototypeWrapper, attr_model: NeuralHead,
             rec_evaluator.eval_batch(u_idxs, rec_scores, labels)
 
             # Fairness Evaluation
-            attr_scores = attr_model(u_p)
+            attr_scores = neural_head(u_p)
 
             fair_evaluator.eval_batch(u_idxs, attr_scores)
 
     rec_results = rec_evaluator.get_results()
     fair_results = fair_evaluator.get_results()
 
-    attr_model.train()
+    neural_head.train()
     return rec_results, fair_results
