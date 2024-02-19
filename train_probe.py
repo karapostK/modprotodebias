@@ -1,0 +1,140 @@
+import torch
+from torch import nn
+from torch.optim.lr_scheduler import CosineAnnealingLR
+from tqdm import tqdm
+from tqdm import trange
+
+import wandb
+from fair.fair_eval import evaluate
+from fair.neural_head import NeuralHead
+from fair.repr_perturb import RepresentationPerturb
+from fair.utils import generate_log_str, get_rec_model, get_dataloaders, \
+    get_user_group_data, get_evaluators
+from utilities.utils import reproducible
+from utilities.wandb_utils import fetch_best_in_sweep
+
+
+def train_probe(probe_config: dict, eval_type: str, wandb_log_prefix: str = None,
+                repr_perturb: RepresentationPerturb = None):
+    assert eval_type in ['val', 'test'], "eval_type must be either 'val' or 'test'"
+
+    rec_conf = fetch_best_in_sweep(
+        probe_config['best_run_sweep_id'],
+        good_faith=True,
+        preamble_path="~",
+        project_base_directory='.'
+    )
+
+    # --- Preparing the Rec Model, Data & Evaluators --- #
+
+    # Data
+    data_loaders = get_dataloaders({
+        **rec_conf,
+        'eval_batch_size': probe_config['eval_batch_size'],
+        'train_batch_size': probe_config['train_batch_size'],
+        'running_settings': {'eval_n_workers': 2, 'train_n_workers': 6}
+    })
+
+    user_to_user_group, n_groups, ce_weights = get_user_group_data(
+        train_dataset=data_loaders['train'].dataset,
+        group_type=probe_config['group_type'],
+        dataset_name=rec_conf['dataset']
+    )
+
+    # Recommender Model
+    rec_model = get_rec_model(
+        rec_conf=rec_conf,
+        dataset=data_loaders['train'].dataset
+    )
+
+    # Evaluators
+    rec_evaluator, fair_evaluator = get_evaluators(
+        n_groups=n_groups,
+        user_to_user_group=user_to_user_group,
+        dataset_name=rec_conf['dataset'],
+        group_type=probe_config['group_type']
+    )
+
+    # --- Setting up the Model (Probe/Adversary) --- #
+
+    reproducible(probe_config['seed'])
+
+    # Neural Head
+    probe_config['neural_layers_config'] = [64] + probe_config['neural_layers_config'] + [n_groups]
+    probe = NeuralHead(layers_config=probe_config['neural_layers_config'])
+
+    # Optimizer & Scheduler
+    probe_optimizer = torch.optim.AdamW(probe.parameters(), lr=probe_config['lr'], weight_decay=probe_config['wd'])
+    probe_scheduler = CosineAnnealingLR(probe_optimizer, T_max=probe_config['n_epochs'], eta_min=1e-6)
+
+    # Loss
+    probe_loss = nn.CrossEntropyLoss(weight=ce_weights.to(probe_config['device']))
+
+    # --- Training the Model --- #
+    user_to_user_group = user_to_user_group.to(probe_config['device'])
+    rec_model.to(probe_config['device'])
+    probe.to(probe_config['device'])
+
+    if repr_perturb is not None:
+        repr_perturb.to(probe_config['device'])
+
+    best_value = -torch.inf
+    best_epoch = -1
+
+    for curr_epoch in trange(probe_config['n_epochs']):
+        print(f"Epoch {curr_epoch}")
+
+        avg_epoch_loss = 0
+
+        for u_idxs, _, _ in tqdm(data_loaders['train']):
+            u_idxs = u_idxs.to(probe_config['device'])
+
+            u_p, u_other = rec_model.get_user_representations(u_idxs)
+
+            if repr_perturb is not None:
+                u_p = repr_perturb(u_p, u_idxs)
+
+            probe_out = probe(u_p)
+            probe_loss_value = probe_loss(probe_out, user_to_user_group[u_idxs].long())
+
+            avg_epoch_loss += probe_loss_value.item()
+
+            probe_loss_value.backward()
+            probe_optimizer.step()
+            probe_optimizer.zero_grad()
+
+        epoch_lr = probe_scheduler.get_last_lr()[0]
+        probe_scheduler.step()
+
+        avg_epoch_loss /= len(data_loaders['train'])
+
+        rec_results, fair_results = evaluate(
+            rec_model=rec_model,
+            neural_head=probe,
+            repr_perturb=repr_perturb,
+            eval_loader=data_loaders[eval_type],
+            rec_evaluator=rec_evaluator,
+            fair_evaluator=fair_evaluator,
+            device=probe_config['device'],
+            verbose=True
+        )
+
+        print("Epoch {} - Avg. Train Loss is {:.3f}".format(curr_epoch, avg_epoch_loss))
+        print(f"Epoch {curr_epoch} - ", generate_log_str(fair_results, n_groups))
+
+        if fair_results['balanced_acc'] > best_value:
+            print(f"Epoch {curr_epoch} found best value.")
+            best_value = fair_results['balanced_acc']
+            best_epoch = curr_epoch
+
+        log_dict = {
+            **rec_results,
+            **fair_results,
+            'best_balanced_acc': best_value,
+            'avg_epoch_loss': avg_epoch_loss,
+            'best_epoch': best_epoch,
+            'epoch_lr': epoch_lr
+        }
+        if wandb_log_prefix is not None:
+            log_dict = {wandb_log_prefix + key: val for key, val in log_dict.items()}
+        wandb.log(log_dict)
