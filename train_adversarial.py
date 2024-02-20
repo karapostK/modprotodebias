@@ -3,21 +3,22 @@ import os
 import torch
 from torch import nn
 from torch.optim.lr_scheduler import CosineAnnealingLR
+from torchinfo import summary
 from tqdm import tqdm
 from tqdm import trange
 
 import wandb
 from fair.fair_eval import evaluate
+from fair.mod_weights import AddModularWeights
 from fair.neural_head import NeuralHead
-from fair.repr_perturb import AddRepresentationPerturb
-from fair.utils import generate_log_str, get_rec_model, get_delta_conf, \
+from fair.utils import generate_log_str, get_rec_model, get_mod_weights_settings, \
     get_dataloaders, get_user_group_data, get_evaluators
 from train.rec_losses import RecSampledSoftmaxLoss
 from utilities.utils import reproducible
 from utilities.wandb_utils import fetch_best_in_sweep
 
 
-def train_adversarial(adv_config: dict, ):
+def train_adversarial(adv_config: dict):
     rec_conf = fetch_best_in_sweep(
         adv_config['best_run_sweep_id'],
         good_faith=True,
@@ -64,22 +65,30 @@ def train_adversarial(adv_config: dict, ):
         layers_config=adv_config['neural_layers_config'],
         gradient_scaling=adv_config['gradient_scaling']
     )
+    print('Adversarial Head Summary: ')
+    summary(adv_head, input_size=(10, 64), device='cpu', dtypes=[torch.float])
 
     # Modular Weights
-    n_masks, user_idx_to_mask_idx = get_delta_conf(adv_config, data_loaders['train'].dataset)
+    n_delta_sets, user_to_delta_set = get_mod_weights_settings(
+        adv_config['delta_on'],
+        data_loaders['train'].dataset,
+        group_type=adv_config['group_type']
+    )
 
-    repr_perturb = AddRepresentationPerturb(
-        repr_dim=64,
-        n_masks=n_masks,
-        user_idx_to_mask_idx=user_idx_to_mask_idx,
+    mod_weights = AddModularWeights(
+        latent_dim=64,
+        n_delta_sets=n_delta_sets,
+        user_to_delta_set=user_to_delta_set,
         init_std=.1,
         clamp_boundaries=(0, 2)
     )
+    print('Modular Weights Summary: ')
+    summary(mod_weights, input_size=[(10, 64), (10,)], device='cpu', dtypes=[torch.float, torch.long])
 
     # Optimizer & Scheduler
     adv_optimizer = torch.optim.AdamW(
         [
-            {'params': repr_perturb.parameters()},
+            {'params': mod_weights.parameters()},
             {'params': adv_head.parameters()}
         ],
         lr=adv_config['lr'],
@@ -99,7 +108,7 @@ def train_adversarial(adv_config: dict, ):
     # --- Training the Model --- #
     user_to_user_group = user_to_user_group.to(adv_config['device'])
     rec_model.to(adv_config['device'])
-    repr_perturb.to(adv_config['device'])
+    mod_weights.to(adv_config['device'])
     adv_head.to(adv_config['device'])
 
     best_recacc_value = -torch.inf
@@ -124,7 +133,7 @@ def train_adversarial(adv_config: dict, ):
             u_p, u_other = rec_model.get_user_representations(u_idxs)
 
             # Perturbing
-            u_p = repr_perturb(u_p, u_idxs)
+            u_p = mod_weights(u_p, u_idxs)
 
             ### Rec Loss ###
             u_repr = u_p, u_other
@@ -133,7 +142,7 @@ def train_adversarial(adv_config: dict, ):
 
             ### Adversarial Head ###
             adv_out = adv_head(u_p)
-            adv_loss_value = adv_loss(adv_out, user_to_user_group[u_idxs].long())
+            adv_loss_value = adv_loss(adv_out, user_to_user_group[u_idxs])
 
             ### Total Loss ###
             tot_loss = rec_loss_value + adv_config['lam_adv'] * adv_loss_value
@@ -156,10 +165,11 @@ def train_adversarial(adv_config: dict, ):
         rec_results, fair_results = evaluate(
             rec_model=rec_model,
             neural_head=adv_head,
-            repr_perturb=repr_perturb,
+            mod_weights=mod_weights,
             eval_loader=data_loaders['val'],
             rec_evaluator=rec_evaluator,
-            fair_evaluator=fair_evaluator, device=adv_config['device'],
+            fair_evaluator=fair_evaluator,
+            device=adv_config['device'],
             verbose=True
         )
 
@@ -168,7 +178,7 @@ def train_adversarial(adv_config: dict, ):
         print(f"Epoch {curr_epoch} - ", generate_log_str(fair_results, n_groups))
 
         saving_dict = {
-            'repr_perturb': repr_perturb.state_dict(),
+            'mod_weights': mod_weights.state_dict(),
             'epoch': curr_epoch,
             'rec_results': rec_results,
             'fair_results': fair_results,
@@ -208,4 +218,4 @@ def train_adversarial(adv_config: dict, ):
             }
         )
 
-    return n_groups, n_masks, user_idx_to_mask_idx
+    return n_delta_sets, user_to_delta_set

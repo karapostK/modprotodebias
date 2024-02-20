@@ -1,21 +1,25 @@
 import torch
 from torch import nn
 from torch.optim.lr_scheduler import CosineAnnealingLR
+from torchinfo import summary
 from tqdm import tqdm
 from tqdm import trange
 
 import wandb
 from fair.fair_eval import evaluate
+from fair.mod_weights import ModularWeights
 from fair.neural_head import NeuralHead
-from fair.repr_perturb import RepresentationPerturb
 from fair.utils import generate_log_str, get_rec_model, get_dataloaders, \
     get_user_group_data, get_evaluators
 from utilities.utils import reproducible
 from utilities.wandb_utils import fetch_best_in_sweep
 
 
-def train_probe(probe_config: dict, eval_type: str, wandb_log_prefix: str = None,
-                repr_perturb: RepresentationPerturb = None):
+def train_probe(probe_config: dict,
+                eval_type: str,
+                wandb_log_prefix: str = None,
+                mod_weights: ModularWeights = None
+                ):
     assert eval_type in ['val', 'test'], "eval_type must be either 'val' or 'test'"
 
     rec_conf = fetch_best_in_sweep(
@@ -63,6 +67,9 @@ def train_probe(probe_config: dict, eval_type: str, wandb_log_prefix: str = None
     probe_config['neural_layers_config'] = [64] + probe_config['neural_layers_config'] + [n_groups]
     probe = NeuralHead(layers_config=probe_config['neural_layers_config'])
 
+    print('Probe Summary: ')
+    summary(probe, input_size=(10, 64), device='cpu', dtypes=[torch.float])
+
     # Optimizer & Scheduler
     probe_optimizer = torch.optim.AdamW(probe.parameters(), lr=probe_config['lr'], weight_decay=probe_config['wd'])
     probe_scheduler = CosineAnnealingLR(probe_optimizer, T_max=probe_config['n_epochs'], eta_min=1e-6)
@@ -75,8 +82,10 @@ def train_probe(probe_config: dict, eval_type: str, wandb_log_prefix: str = None
     rec_model.to(probe_config['device'])
     probe.to(probe_config['device'])
 
-    if repr_perturb is not None:
-        repr_perturb.to(probe_config['device'])
+    if mod_weights is not None:
+        print('Modular Weights Summary: ')
+        summary(mod_weights, input_size=[(10, 64), (10,)], device='cpu', dtypes=[torch.float, torch.long])
+        mod_weights.to(probe_config['device'])
 
     best_value = -torch.inf
     best_epoch = -1
@@ -91,11 +100,11 @@ def train_probe(probe_config: dict, eval_type: str, wandb_log_prefix: str = None
 
             u_p, u_other = rec_model.get_user_representations(u_idxs)
 
-            if repr_perturb is not None:
-                u_p = repr_perturb(u_p, u_idxs)
+            if mod_weights is not None:
+                u_p = mod_weights(u_p, u_idxs)
 
             probe_out = probe(u_p)
-            probe_loss_value = probe_loss(probe_out, user_to_user_group[u_idxs].long())
+            probe_loss_value = probe_loss(probe_out, user_to_user_group[u_idxs])
 
             avg_epoch_loss += probe_loss_value.item()
 
@@ -111,7 +120,7 @@ def train_probe(probe_config: dict, eval_type: str, wandb_log_prefix: str = None
         rec_results, fair_results = evaluate(
             rec_model=rec_model,
             neural_head=probe,
-            repr_perturb=repr_perturb,
+            mod_weights=mod_weights,
             eval_loader=data_loaders[eval_type],
             rec_evaluator=rec_evaluator,
             fair_evaluator=fair_evaluator,
