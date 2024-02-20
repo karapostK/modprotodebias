@@ -28,7 +28,7 @@ def train_val_agent():
     # --- Probe check with default hyperparameters --- #
     probe_config = {
         **adv_config,
-        'neural_layers_config': [64, 128, n_groups],
+        'neural_layers_config': [128],
         'n_epochs': 25,
         'lr': 5e-4,
         'wd': 1e-5,
