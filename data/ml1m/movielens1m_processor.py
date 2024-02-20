@@ -20,7 +20,7 @@ force_download = args.force_download
 if not os.path.exists('./raw_dataset') or force_download:
     if force_download and os.path.exists('./raw_dataset'):
         shutil.rmtree('./raw_dataset')
-    download_movielens1m_dataset('./', '1m')
+    download_movielens1m_dataset('./')
 
 if os.path.exists('./processed_dataset'):
     shutil.rmtree('./processed_dataset')
