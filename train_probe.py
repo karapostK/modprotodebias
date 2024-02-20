@@ -6,6 +6,7 @@ from tqdm import tqdm
 from tqdm import trange
 
 import wandb
+from conf.protofair_conf_parser import parse_conf
 from fair.fair_eval import evaluate
 from fair.mod_weights import ModularWeights
 from fair.neural_head import NeuralHead
@@ -22,6 +23,8 @@ def train_probe(probe_config: dict,
                 ):
     assert eval_type in ['val', 'test'], "eval_type must be either 'val' or 'test'"
 
+    probe_config = parse_conf(probe_config)
+    # --- Fetching the Best Run Configuration --- #
     rec_conf = fetch_best_in_sweep(
         probe_config['best_run_sweep_id'],
         good_faith=True,
@@ -34,9 +37,7 @@ def train_probe(probe_config: dict,
     # Data
     data_loaders = get_dataloaders({
         **rec_conf,
-        'eval_batch_size': probe_config['eval_batch_size'],
-        'train_batch_size': probe_config['train_batch_size'],
-        'running_settings': {'eval_n_workers': 2, 'train_n_workers': 6}
+        **probe_config,
     })
 
     user_to_user_group, n_groups, ce_weights = get_user_group_data(
@@ -72,7 +73,7 @@ def train_probe(probe_config: dict,
 
     # Optimizer & Scheduler
     probe_optimizer = torch.optim.AdamW(probe.parameters(), lr=probe_config['lr'], weight_decay=probe_config['wd'])
-    probe_scheduler = CosineAnnealingLR(probe_optimizer, T_max=probe_config['n_epochs'], eta_min=1e-6)
+    probe_scheduler = CosineAnnealingLR(probe_optimizer, T_max=probe_config['n_epochs'], eta_min=probe_config['eta_min'])
 
     # Loss
     probe_loss = nn.CrossEntropyLoss(weight=ce_weights.to(probe_config['device']))
