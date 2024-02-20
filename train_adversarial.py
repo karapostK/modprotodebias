@@ -8,6 +8,7 @@ from tqdm import tqdm
 from tqdm import trange
 
 import wandb
+from conf.protofair_conf_parser import parse_conf
 from fair.fair_eval import evaluate
 from fair.mod_weights import AddModularWeights
 from fair.neural_head import NeuralHead
@@ -19,6 +20,8 @@ from utilities.wandb_utils import fetch_best_in_sweep
 
 
 def train_adversarial(adv_config: dict):
+    adv_config = parse_conf(adv_config)
+
     rec_conf = fetch_best_in_sweep(
         adv_config['best_run_sweep_id'],
         good_faith=True,
@@ -31,9 +34,7 @@ def train_adversarial(adv_config: dict):
     # Data
     data_loaders = get_dataloaders({
         **rec_conf,
-        'eval_batch_size': adv_config['eval_batch_size'],
-        'train_batch_size': adv_config['train_batch_size'],
-        'running_settings': {'eval_n_workers': 2, 'train_n_workers': 6}
+        **adv_config,
     })
 
     user_to_user_group, n_groups, ce_weights = get_user_group_data(
@@ -79,7 +80,7 @@ def train_adversarial(adv_config: dict):
         latent_dim=64,
         n_delta_sets=n_delta_sets,
         user_to_delta_set=user_to_delta_set,
-        init_std=.1,
+        init_std=adv_config['init_std'],
         clamp_boundaries=(0, 2)
     )
     print('Modular Weights Summary: ')
@@ -94,7 +95,7 @@ def train_adversarial(adv_config: dict):
         lr=adv_config['lr'],
         weight_decay=adv_config['wd']
     )
-    scheduler = CosineAnnealingLR(adv_optimizer, T_max=adv_config['n_epochs'], eta_min=1e-6)
+    scheduler = CosineAnnealingLR(adv_optimizer, T_max=adv_config['n_epochs'], eta_min=adv_config['eta_min'])
 
     # Loss
     adv_loss = nn.CrossEntropyLoss(weight=ce_weights.to(adv_config['device']))

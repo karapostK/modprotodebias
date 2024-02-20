@@ -31,7 +31,6 @@ def train_val_agent():
         'neural_layers_config': [128],
         'n_epochs': 25,
         'lr': 5e-4,
-        'wd': 1e-5,
     }
 
     # Modular Weights
