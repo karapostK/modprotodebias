@@ -9,7 +9,6 @@ from tqdm import tqdm
 from algorithms.base_classes import SGDBasedRecommenderAlgorithm, RecommenderAlgorithm
 from eval.metrics import precision_at_k_batch, ndcg_at_k_batch, recall_at_k_batch, hellinger_distance, \
     jensen_shannon_distance, kl_divergence
-from fairness.fairness_utily import compute_rec_gap
 from utilities.utils import log_info_results
 
 
@@ -154,26 +153,6 @@ class FullEvaluatorDecorator(FullEvaluator):
 
     def eval_batch(self, u_idxs: torch.Tensor, logits: torch.Tensor, y_true: torch.Tensor):
         self.full_evaluator.eval_batch(u_idxs, logits, y_true)
-
-
-class RecGapComputeDecorator(FullEvaluatorDecorator):
-    """
-    Computes the gap for a specific metric
-    """
-
-    def __init__(self, full_evaluator: FullEvaluator, metric_name: str):
-        super().__init__(full_evaluator)
-        assert self.get_n_groups() == 2, 'Gap can be computed only for 2 groups'
-        assert self.get_aggr_by_group(), 'Gap can be computed only if the results are aggregated by group'
-
-        self.metric_name = metric_name
-        self.name = 'RecGapComputeDecorator'
-        logging.log(logging.INFO, f"Built {self.name}")
-
-    def get_results(self):
-        result_dict = self.full_evaluator.get_results()
-        result_dict[f"gap({self.metric_name})"] = compute_rec_gap(result_dict, self.metric_name, True)
-        return result_dict
 
 
 class FullEvaluatorCalibrationDecorator(FullEvaluatorDecorator):
