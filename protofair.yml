@@ -15,7 +15,6 @@ dependencies:
   - wandb
   - scp
   - scikit-learn
-  - jupyter
   - pytorch-cuda=11.8
   - paramiko
-prefix: /home/alessandro/anaconda3/envs/protofair
+  - torchinfo

@@ -1,4 +1,5 @@
 import torch
+from torchinfo import summary
 
 from algorithms.algorithms_utils import AlgorithmsEnum
 from data.data_utils import DatasetsEnum, get_dataloader
@@ -116,7 +117,7 @@ def get_user_group_data(train_dataset: RecDataset, dataset_name: str, group_type
                                        user_to_user_group=user_to_user_group, dataset_name=dataset_name,
                                        attribute=group_type)
 
-    return user_to_user_group, n_groups, ce_weights
+    return user_to_user_group.long(), n_groups, ce_weights
 
 
 def get_rec_model(rec_conf: dict, dataset: RecDataset):
@@ -132,6 +133,11 @@ def get_rec_model(rec_conf: dict, dataset: RecDataset):
     rec_model = alg.value.build_from_conf(rec_conf, dataset)
     rec_model.load_model_from_path(rec_conf['model_path'])
     rec_model.requires_grad_(False)
+
+    print('Rec Model Summary: ')
+    summary(rec_model, input_size=[(10,), (10,)], device='cpu', dtypes=[torch.long, torch.long],
+            col_names=['input_size', 'output_size', 'num_params'])
+
     return rec_model
 
 
@@ -158,19 +164,30 @@ def get_evaluators(n_groups: int, user_to_user_group: torch.Tensor, dataset_name
     return rec_evaluator, fair_evaluator
 
 
-def get_delta_conf(debias_conf, train_dataset):
-    if debias_conf['delta_on'] == 'all':
-        n_masks = 1
-        user_idx_to_mask_idx = torch.zeros(train_dataset.n_users, dtype=torch.long).to(debias_conf['device'])
-        print("Using a single mask for all users")
-    elif debias_conf['delta_on'] == 'groups':
-        n_masks = train_dataset.n_user_groups[debias_conf['group_type']]
-        user_idx_to_mask_idx = train_dataset.user_to_user_group[debias_conf['group_type']].to(debias_conf['device'])
-        print(f"Using a mask for each user group ({n_masks})")
-    elif debias_conf['delta_on'] == 'users':
-        n_masks = train_dataset.n_users
-        user_idx_to_mask_idx = torch.arange(train_dataset.n_users, dtype=torch.long).to(debias_conf['device'])
-        print(f"Using a mask for each user ({n_masks})")
+def get_mod_weights_settings(delta_on: str, train_dataset, group_type: str = None):
+    """
+    Returns the number of delta sets and the mapping from users to delta sets.
+    :param delta_on: Whether to use a single delta set for all users, a delta set for each user group, or a delta set for each user
+    :param train_dataset: The training dataset
+    :param group_type: If delta_on is 'groups', the group type should be specified
+    :return:
+    """
+    assert delta_on in ['all', 'groups', 'users'], f'Unknown value for delta_on: {delta_on}'
+    assert group_type is not None or delta_on != 'groups', 'group_type should be specified when delta_on is groups'
+
+    if delta_on == 'all':
+        n_delta_sets = 1
+        user_to_delta_set = torch.zeros(train_dataset.n_users, dtype=torch.long)
+        print("Using a single delta set for all users")
+    elif delta_on == 'groups':
+        n_delta_sets = train_dataset.n_user_groups[group_type]
+        user_to_delta_set = train_dataset.user_to_user_group[group_type]
+        print(f"Using a delta set for each user group ({n_delta_sets})")
+    elif delta_on == 'users':
+        n_delta_sets = train_dataset.n_users
+        user_to_delta_set = torch.arange(train_dataset.n_users, dtype=torch.long)
+        print(f"Using a delta set for each user ({n_delta_sets})")
     else:
-        raise ValueError(f"Unknown value for delta_on: {debias_conf['delta_on']}")
-    return n_masks, user_idx_to_mask_idx
+        raise ValueError(f'Unknown value for delta_on: {delta_on}')
+
+    return n_delta_sets, user_to_delta_set

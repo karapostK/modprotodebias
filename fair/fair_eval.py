@@ -5,8 +5,8 @@ from tqdm import tqdm
 
 from algorithms.base_classes import PrototypeWrapper
 from eval.eval import FullEvaluator
+from fair.mod_weights import ModularWeights
 from fair.neural_head import NeuralHead
-from fair.repr_perturb import RepresentationPerturb
 
 
 class FairEvaluator:
@@ -97,9 +97,14 @@ class FairEvaluator:
         return metrics_dict
 
 
-def evaluate(rec_model: PrototypeWrapper, neural_head: NeuralHead, eval_loader: torch.utils.data.DataLoader,
-             rec_evaluator: FullEvaluator, fair_evaluator: FairEvaluator, repr_perturb: RepresentationPerturb = None,
-             device: str = 'cpu', verbose: bool = False):
+def evaluate(rec_model: PrototypeWrapper,
+             neural_head: NeuralHead,
+             eval_loader: torch.utils.data.DataLoader,
+             rec_evaluator: FullEvaluator,
+             fair_evaluator: FairEvaluator,
+             mod_weights: ModularWeights = None,
+             device: str = 'cpu',
+             verbose: bool = False):
 
     neural_head.eval()
 
@@ -115,20 +120,20 @@ def evaluate(rec_model: PrototypeWrapper, neural_head: NeuralHead, eval_loader: 
         i_idxs = torch.arange(eval_loader.dataset.n_items).to(device)
         i_repr = rec_model.get_item_representations(i_idxs)
 
-        for u_idxs, _, labels in iterator:
+        for u_idxs, labels, batch_mask in iterator:
             u_idxs = u_idxs.to(device)
             labels = labels.to(device)
+            batch_mask = batch_mask.to(device)
 
             u_p, u_other = rec_model.get_user_representations(u_idxs)
 
             # Perturbing the representation if needed
-            if repr_perturb is not None:
-                u_p = repr_perturb(u_p, u_idxs)
+            if mod_weights is not None:
+                u_p = mod_weights(u_p, u_idxs)
 
             # Recommendation Evaluation
             u_repr = u_p, u_other
             rec_scores = rec_model.combine_user_item_representations(u_repr, i_repr)
-            batch_mask = torch.tensor(eval_loader.dataset.exclude_data[u_idxs.cpu()].A)
             rec_scores[batch_mask] = -torch.inf
 
             rec_evaluator.eval_batch(u_idxs, rec_scores, labels)

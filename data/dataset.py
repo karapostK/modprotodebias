@@ -203,8 +203,8 @@ class FullEvalDataset(RecDataset):
         return self.n_users
 
     def __getitem__(self, user_index):
-        return user_index, np.arange(self.n_items), self.iteration_matrix[user_index].toarray().squeeze().astype(
-            'float32')
+        return user_index, self.iteration_matrix[user_index].toarray().squeeze().astype(
+            'float32'), self.exclude_data[user_index].toarray().squeeze().astype('bool')
 
 
 class TrainUserRecDataset(TrainRecDataset):
