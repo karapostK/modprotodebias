@@ -28,8 +28,6 @@ def train_probe(probe_config: dict,
     rec_conf = fetch_best_in_sweep(
         probe_config['best_run_sweep_id'],
         good_faith=True,
-        preamble_path="~",
-        project_base_directory='.'
     )
 
     # --- Preparing the Rec Model, Data & Evaluators --- #
@@ -73,7 +71,8 @@ def train_probe(probe_config: dict,
 
     # Optimizer & Scheduler
     probe_optimizer = torch.optim.AdamW(probe.parameters(), lr=probe_config['lr'], weight_decay=probe_config['wd'])
-    probe_scheduler = CosineAnnealingLR(probe_optimizer, T_max=probe_config['n_epochs'], eta_min=probe_config['eta_min'])
+    probe_scheduler = CosineAnnealingLR(probe_optimizer, T_max=probe_config['n_epochs'],
+                                        eta_min=probe_config['eta_min'])
 
     # Loss
     probe_loss = nn.CrossEntropyLoss(weight=ce_weights.to(probe_config['device']))

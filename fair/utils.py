@@ -70,22 +70,7 @@ def get_dataloaders(config: dict):
 
     config['train_iterate_over'] = 'interactions'
 
-    if 'eval_batch_size' not in config:
-        config['eval_batch_size'] = 10
-        print('Using default eval batch size of 10')
-    if 'train_batch_size' not in config:
-        config['train_batch_size'] = 512
-        print('Using default train batch size of 512')
-
-    if 'running_settings' not in config:
-        config['running_settings'] = dict()
-
-    if 'eval_n_workers' not in config['running_settings']:
-        config['running_settings']['eval_n_workers'] = 2
-        print('Using default eval n workers of 2')
-    if 'train_n_workers' not in config['running_settings']:
-        config['running_settings']['train_n_workers'] = 6
-        print('Using default train n workers of 6')
+    print(config)
 
     data_loaders = {
         'train': get_dataloader(config, 'train'),

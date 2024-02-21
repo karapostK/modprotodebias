@@ -25,8 +25,6 @@ def train_adversarial(adv_config: dict):
     rec_conf = fetch_best_in_sweep(
         adv_config['best_run_sweep_id'],
         good_faith=True,
-        preamble_path="~",
-        project_base_directory='.'
     )
 
     # --- Preparing the Rec Model, Data & Evaluators --- #
@@ -81,7 +79,7 @@ def train_adversarial(adv_config: dict):
         n_delta_sets=n_delta_sets,
         user_to_delta_set=user_to_delta_set,
         init_std=adv_config['init_std'],
-        clamp_boundaries=(0, 2)
+        use_clamping=adv_config['use_clamping']
     )
     print('Modular Weights Summary: ')
     summary(mod_weights, input_size=[(10, 64), (10,)], device='cpu', dtypes=[torch.float, torch.long])
@@ -104,7 +102,7 @@ def train_adversarial(adv_config: dict):
     # Save path
 
     os.makedirs(os.path.dirname(adv_config['save_path']), exist_ok=True)
-    wandb.config.update(adv_config)
+    wandb.config.update(adv_config, allow_val_change=True)
 
     # --- Training the Model --- #
     user_to_user_group = user_to_user_group.to(adv_config['device'])
@@ -116,6 +114,8 @@ def train_adversarial(adv_config: dict):
     best_recacc_epoch = -1
     worst_bacc_value = torch.inf
     worst_bacc_epoch = -1
+
+    wandb.watch(mod_weights, log='all')
 
     for curr_epoch in trange(adv_config['n_epochs']):
         print(f"Epoch {curr_epoch}")
@@ -215,7 +215,10 @@ def train_adversarial(adv_config: dict):
                 'avg_epoch_loss': avg_epoch_loss,
                 'avg_adv_loss': avg_adv_loss,
                 'avg_rec_loss': avg_rec_loss,
-                'epoch_lr': epoch_lr
+                'epoch_lr': epoch_lr,
+                'max_delta': mod_weights.deltas.max().item(),
+                'min_delta': mod_weights.deltas.min().item(),
+                'mean_delta': mod_weights.deltas.mean().item(),
             }
         )
 
