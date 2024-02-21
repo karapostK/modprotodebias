@@ -63,8 +63,8 @@ def train_probe(probe_config: dict,
     reproducible(probe_config['seed'])
 
     # Neural Head
-    probe_config['neural_layers_config'] = [64] + probe_config['neural_layers_config'] + [n_groups]
-    probe = NeuralHead(layers_config=probe_config['neural_layers_config'])
+    layers_config = [64] + probe_config['inner_layers_config'] + [n_groups]
+    probe = NeuralHead(layers_config=layers_config)
 
     print('Probe Summary: ')
     summary(probe, input_size=(10, 64), device='cpu', dtypes=[torch.float])

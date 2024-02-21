@@ -17,7 +17,7 @@ adv_config = {
     'group_type': 'gender',
     'delta_on': 'users',
 
-    'neural_layers_config': [128],
+    'inner_layers_config': [128],
     'use_clamping': True,
 
     'lr': 1e-5,
@@ -45,7 +45,7 @@ n_delta_sets, user_to_delta_set = train_adversarial(adv_config)
 
 probe_config = {
     **adv_config,
-    'neural_layers_config': [128],
+    'inner_layers_config': [128],
     'n_epochs': 25,
     'lr': 5e-4,
     'wd': 1e-5

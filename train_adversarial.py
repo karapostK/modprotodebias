@@ -59,9 +59,9 @@ def train_adversarial(adv_config: dict):
     reproducible(adv_config['seed'])
 
     # Neural Head
-    adv_config['neural_layers_config'] = [64] + adv_config['neural_layers_config'] + [n_groups]
+    layers_config = [64] + adv_config['inner_layers_config'] + [n_groups]
     adv_head = NeuralHead(
-        layers_config=adv_config['neural_layers_config'],
+        layers_config=layers_config,
         gradient_scaling=adv_config['gradient_scaling']
     )
     print('Adversarial Head Summary: ')
@@ -202,6 +202,9 @@ def train_adversarial(adv_config: dict):
 
             # Save
             torch.save(saving_dict, os.path.join(adv_config['save_path'], 'worst_bacc.pth'))
+
+        if curr_epoch % 5 == 0 and curr_epoch > 0:
+            torch.save(saving_dict, os.path.join(adv_config['save_path'], f'epoch_{curr_epoch}.pth'))
 
         # Save last
         torch.save(saving_dict, os.path.join(adv_config['save_path'], 'last.pth'))
