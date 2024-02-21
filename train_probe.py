@@ -68,6 +68,7 @@ def train_probe(probe_config: dict,
 
     print('Probe Summary: ')
     summary(probe, input_size=(10, 64), device='cpu', dtypes=[torch.float])
+    print()
 
     # Optimizer & Scheduler
     probe_optimizer = torch.optim.AdamW(probe.parameters(), lr=probe_config['lr'], weight_decay=probe_config['wd'])
@@ -85,6 +86,7 @@ def train_probe(probe_config: dict,
     if mod_weights is not None:
         print('Modular Weights Summary: ')
         summary(mod_weights, input_size=[(10, 64), (10,)], device='cpu', dtypes=[torch.float, torch.long])
+        print()
         mod_weights.to(probe_config['device'])
 
     best_value = -torch.inf

@@ -66,6 +66,7 @@ def train_adversarial(adv_config: dict):
     )
     print('Adversarial Head Summary: ')
     summary(adv_head, input_size=(10, 64), device='cpu', dtypes=[torch.float])
+    print()
 
     # Modular Weights
     n_delta_sets, user_to_delta_set = get_mod_weights_settings(
@@ -83,6 +84,7 @@ def train_adversarial(adv_config: dict):
     )
     print('Modular Weights Summary: ')
     summary(mod_weights, input_size=[(10, 64), (10,)], device='cpu', dtypes=[torch.float, torch.long])
+    print()
 
     # Optimizer & Scheduler
     adv_optimizer = torch.optim.AdamW(

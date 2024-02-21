@@ -57,4 +57,6 @@ def parse_conf(conf: dict, ) -> dict:
 
     print(f"Added parameters: {', '.join(added_parameters_list)}")
 
+    print(f"Current Configuration: {conf}")
+
     return conf
