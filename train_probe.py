@@ -1,8 +1,9 @@
+import math
+
 import torch
 from torch import nn
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torchinfo import summary
-from tqdm import tqdm
 from tqdm import trange
 
 import wandb
@@ -37,6 +38,9 @@ def train_probe(probe_config: dict,
         **rec_conf,
         **probe_config,
     })
+
+    # For Training the probe, we just need the user indexes (with multiplicity according to the number of interactions)
+    u_idxs = torch.tensor(data_loaders['train'].dataset.iteration_matrix.row)  # Will be permuted later
 
     user_to_user_group, n_groups, ce_weights = get_user_group_data(
         train_dataset=data_loaders['train'].dataset,
@@ -79,6 +83,7 @@ def train_probe(probe_config: dict,
     probe_loss = nn.CrossEntropyLoss(weight=ce_weights.to(probe_config['device']))
 
     # --- Training the Model --- #
+    u_idxs = u_idxs.to(probe_config['device'])
     user_to_user_group = user_to_user_group.to(probe_config['device'])
     rec_model.to(probe_config['device'])
     probe.to(probe_config['device'])
@@ -97,16 +102,19 @@ def train_probe(probe_config: dict,
 
         avg_epoch_loss = 0
 
-        for u_idxs, _, _ in tqdm(data_loaders['train']):
-            u_idxs = u_idxs.to(probe_config['device'])
+        # Permuting the data every epoch
+        u_idxs = u_idxs[torch.randperm(len(u_idxs), device=probe_config['device'])]
 
-            u_p, u_other = rec_model.get_user_representations(u_idxs)
+        for i in trange(0, len(u_idxs), probe_config['train_batch_size']):
+            u_idxs_batch = u_idxs[i:i + probe_config['train_batch_size']]
+
+            u_p, _ = rec_model.get_user_representations(u_idxs_batch)
 
             if mod_weights is not None:
-                u_p = mod_weights(u_p, u_idxs)
+                u_p = mod_weights(u_p, u_idxs_batch)
 
             probe_out = probe(u_p)
-            probe_loss_value = probe_loss(probe_out, user_to_user_group[u_idxs])
+            probe_loss_value = probe_loss(probe_out, user_to_user_group[u_idxs_batch])
 
             avg_epoch_loss += probe_loss_value.item()
 
@@ -117,7 +125,7 @@ def train_probe(probe_config: dict,
         epoch_lr = probe_scheduler.get_last_lr()[0]
         probe_scheduler.step()
 
-        avg_epoch_loss /= len(data_loaders['train'])
+        avg_epoch_loss /= math.ceil(len(u_idxs) / probe_config['train_batch_size'])
 
         rec_results, fair_results = evaluate(
             rec_model=rec_model,
