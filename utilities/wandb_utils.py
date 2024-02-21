@@ -12,8 +12,7 @@ from conf.conf_parser import parse_conf_file
 
 
 def fetch_best_in_sweep(sweep_id: str, wandb_entity_name: str = None, wandb_project_name: str = None,
-                        good_faith: bool = True, preamble_path: str = None,
-                        project_base_directory: str = '..'):
+                        good_faith: bool = True, project_base_directory: str = '.'):
     """
     Utility function to fetch the configuration of the best model from a sweep. It assumes that the sweep has been run
     with method = 'bayes'. It also adapts the paths to the local directory.
@@ -27,9 +26,14 @@ def fetch_best_in_sweep(sweep_id: str, wandb_entity_name: str = None, wandb_proj
     :param wandb_entity_name: The name of the wandb entity
     :param wandb_project_name: The name of the wandb project
     :param good_faith: Whether to trust that the local directory has the best model
-    :param preamble_path: Prefix to add to the dataset and data paths. If none, it will not change the paths.
     :param project_base_directory: The base directory of the project. It will be used to store the model.
     """
+
+    current_host = socket.gethostname()
+    if current_host == 'passionpit.cp.jku.at':
+        preamble_path = '~/PycharmProjects'
+    else:
+        preamble_path = '~'
 
     if good_faith:
 

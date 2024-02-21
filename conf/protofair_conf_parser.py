@@ -7,6 +7,7 @@ DEF_ETA_MIN = 1e-6
 DEF_DELTA_ON = 'user'
 DEF_WD = 1e-5
 DEF_GRADIENT_SCALING = 1
+DEF_USE_CLAMPING = True
 
 
 def parse_conf(conf: dict, ) -> dict:
@@ -40,6 +41,9 @@ def parse_conf(conf: dict, ) -> dict:
     if 'gradient_scaling' not in conf:
         conf['gradient_scaling'] = DEF_GRADIENT_SCALING
         added_parameters_list.append(f"gradient_scaling={conf['gradient_scaling']}")
+    if 'use_clamping' not in conf:
+        conf['use_clamping'] = DEF_USE_CLAMPING
+        added_parameters_list.append(f"use_clamping={conf['use_clamping']}")
 
     if 'running_settings' not in conf:
         conf['running_settings'] = dict()

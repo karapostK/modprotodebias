@@ -33,25 +33,26 @@ def train_val_agent():
         'lr': 5e-4,
     }
 
-    # Modular Weights
-    mod_weights = AddModularWeights(
-        latent_dim=64,
-        n_delta_sets=n_delta_sets,
-        user_to_delta_set=user_to_delta_set,
-        clamp_boundaries=(0, 2)
-    )
-    repr_perturb_state_dict = torch.load(
-        os.path.join(save_path, 'last.pth'), map_location=adv_config['device']
-    )['mod_weights']
-    mod_weights.load_state_dict(repr_perturb_state_dict)
-    mod_weights.requires_grad_(False)
+    for case in ['last', 'worst_bacc', 'best_recacc']:
+        # Modular Weights
+        mod_weights = AddModularWeights(
+            latent_dim=64,
+            n_delta_sets=n_delta_sets,
+            user_to_delta_set=user_to_delta_set,
+            use_clamping=adv_config['use_clamping']
+        )
+        mod_weights_state_dict = torch.load(
+            os.path.join(save_path, f'{case}.pth'), map_location=adv_config['device']
+        )['mod_weights']
+        mod_weights.load_state_dict(mod_weights_state_dict)
+        mod_weights.requires_grad_(False)
 
-    train_probe(
-        probe_config=probe_config,
-        eval_type='test',
-        wandb_log_prefix='final_',
-        mod_weights=mod_weights
-    )
+        train_probe(
+            probe_config=probe_config,
+            eval_type='test',
+            wandb_log_prefix=f'{case}_',
+            mod_weights=mod_weights
+        )
 
     wandb.finish()
 

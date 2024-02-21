@@ -50,11 +50,11 @@ class ModularWeights(ABC, nn.Module):
 class AddModularWeights(ModularWeights):
 
     def __init__(self, latent_dim: int, n_delta_sets: int, user_to_delta_set: torch.tensor, init_std: float = .01,
-                 clamp_boundaries: tuple = None):
+                 use_clamping: bool = False):
         super().__init__(latent_dim, n_delta_sets, user_to_delta_set)
 
         self.init_std = init_std
-        self.clamp_boundaries = clamp_boundaries
+        self.use_clamping = use_clamping
 
         self.deltas = nn.Parameter(init_std * torch.randn(self.n_delta_sets, self.latent_dim), requires_grad=True)
 
@@ -69,20 +69,21 @@ class AddModularWeights(ModularWeights):
         """
         deltas = self.deltas[self.user_to_delta_set[user_idxs]]  # [batch_size, latent_dim]
         out_repr = in_repr + deltas
-        if self.clamp_boundaries is not None:
-            out_repr = torch.clamp(out_repr, self.clamp_boundaries[0], self.clamp_boundaries[1])
+        if self.use_clamping:
+            out_repr = torch.clamp(out_repr, 0, 2)
         return out_repr
 
 
 class MultiplyModularWeights(ModularWeights):
     def __init__(self, latent_dim: int, n_delta_sets: int, user_to_delta_set: torch.tensor, init_std: float = .01,
-                 clamp_boundaries: tuple = None):
+                 use_clamping: bool = False):
         super().__init__(latent_dim, n_delta_sets, user_to_delta_set)
 
         self.init_std = init_std
-        self.clamp_boundaries = clamp_boundaries
+        self.use_clamping = use_clamping
 
-        self.deltas = nn.Parameter(init_std * torch.randn(self.n_delta_sets, self.latent_dim), requires_grad=True)
+        # Deltas are initialized with a normal distribution with mean 1 and std init_std
+        self.deltas = nn.Parameter(init_std * (1 + torch.randn(self.n_delta_sets, self.latent_dim)), requires_grad=True)
 
         logging.info(f'Built {self.__class__.__name__} module \n')
 
@@ -95,19 +96,16 @@ class MultiplyModularWeights(ModularWeights):
         """
         deltas = self.deltas[self.user_to_delta_set[user_idxs]]  # [batch_size, latent_dim]
         out_repr = in_repr * deltas
-        if self.clamp_boundaries is not None:
-            out_repr = torch.clamp(out_repr, self.clamp_boundaries[0], self.clamp_boundaries[1])
+        if self.use_clamping:
+            out_repr = torch.clamp(out_repr, 0, 2)
         return out_repr
 
 
 class ScaleModularWeights(ModularWeights):
-    def __init__(self, latent_dim: int, n_delta_sets: int, user_to_delta_set: torch.tensor, init_std: float = .01,
-                 clamp_boundaries: tuple = None):
+    def __init__(self, latent_dim: int, n_delta_sets: int, user_to_delta_set: torch.tensor, init_std: float = .01, ):
         super().__init__(latent_dim, n_delta_sets, user_to_delta_set)
 
         self.init_std = init_std
-        self.clamp_boundaries = clamp_boundaries  # ignored
-
         self.deltas = nn.Parameter(init_std * torch.randn(self.n_delta_sets, self.latent_dim), requires_grad=True)
 
         logging.info(f'Built {self.__class__.__name__} module \n')
