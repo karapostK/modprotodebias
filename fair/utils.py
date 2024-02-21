@@ -70,8 +70,6 @@ def get_dataloaders(config: dict):
 
     config['train_iterate_over'] = 'interactions'
 
-    print(config)
-
     data_loaders = {
         'train': get_dataloader(config, 'train'),
         'val': get_dataloader(config, 'val'),
@@ -122,6 +120,7 @@ def get_rec_model(rec_conf: dict, dataset: RecDataset):
     print('Rec Model Summary: ')
     summary(rec_model, input_size=[(10,), (10,)], device='cpu', dtypes=[torch.long, torch.long],
             col_names=['input_size', 'output_size', 'num_params'])
+    print()
 
     return rec_model
 
