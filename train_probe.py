@@ -3,7 +3,6 @@ import math
 import torch
 from torch import nn
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from torchinfo import summary
 from tqdm import trange
 
 import wandb
@@ -12,7 +11,7 @@ from fair.fair_eval import evaluate
 from fair.mod_weights import ModularWeights
 from fair.neural_head import NeuralHead
 from fair.utils import generate_log_str, get_rec_model, get_dataloaders, \
-    get_user_group_data, get_evaluators
+    get_user_group_data, get_evaluators, summarize
 from utilities.utils import reproducible
 from utilities.wandb_utils import fetch_best_in_sweep
 
@@ -70,8 +69,9 @@ def train_probe(probe_config: dict,
     layers_config = [64] + probe_config['inner_layers_config'] + [n_groups]
     probe = NeuralHead(layers_config=layers_config)
 
+    print()
     print('Probe Summary: ')
-    summary(probe, input_size=(10, 64), device='cpu', dtypes=[torch.float])
+    summarize(probe, input_size=(10, 64), dtypes=[torch.float])
     print()
 
     # Optimizer & Scheduler
@@ -89,8 +89,9 @@ def train_probe(probe_config: dict,
     probe.to(probe_config['device'])
 
     if mod_weights is not None:
+        print()
         print('Modular Weights Summary: ')
-        summary(mod_weights, input_size=[(10, 64), (10,)], device='cpu', dtypes=[torch.float, torch.long])
+        summarize(mod_weights, input_size=[(10, 64), (10,)], dtypes=[torch.float, torch.long])
         print()
         mod_weights.to(probe_config['device'])
 

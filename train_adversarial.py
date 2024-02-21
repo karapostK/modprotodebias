@@ -3,7 +3,6 @@ import os
 import torch
 from torch import nn
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from torchinfo import summary
 from tqdm import tqdm
 from tqdm import trange
 
@@ -13,7 +12,7 @@ from fair.fair_eval import evaluate
 from fair.mod_weights import AddModularWeights
 from fair.neural_head import NeuralHead
 from fair.utils import generate_log_str, get_rec_model, get_mod_weights_settings, \
-    get_dataloaders, get_user_group_data, get_evaluators
+    get_dataloaders, get_user_group_data, get_evaluators, summarize
 from train.rec_losses import RecSampledSoftmaxLoss
 from utilities.utils import reproducible
 from utilities.wandb_utils import fetch_best_in_sweep
@@ -64,8 +63,9 @@ def train_adversarial(adv_config: dict):
         layers_config=layers_config,
         gradient_scaling=adv_config['gradient_scaling']
     )
+    print()
     print('Adversarial Head Summary: ')
-    summary(adv_head, input_size=(10, 64), device='cpu', dtypes=[torch.float])
+    summarize(adv_head, input_size=(10, 64), dtypes=[torch.float])
     print()
 
     # Modular Weights
@@ -82,8 +82,9 @@ def train_adversarial(adv_config: dict):
         init_std=adv_config['init_std'],
         use_clamping=adv_config['use_clamping']
     )
+    print()
     print('Modular Weights Summary: ')
-    summary(mod_weights, input_size=[(10, 64), (10,)], device='cpu', dtypes=[torch.float, torch.long])
+    summarize(mod_weights, input_size=[(10, 64), (10,)], dtypes=[torch.float, torch.long])
     print()
 
     # Optimizer & Scheduler

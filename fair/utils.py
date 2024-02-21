@@ -1,3 +1,5 @@
+from functools import partial
+
 import torch
 from torchinfo import summary
 
@@ -7,6 +9,8 @@ from data.dataset import RecDataset
 from eval.eval import FullEvaluator
 from eval.metrics import ndcg_at_k_batch
 from fair.fair_eval import FairEvaluator
+
+summarize = partial(summary, col_names=['input_size', 'output_size', 'num_params'], device='cpu', )
 
 
 def generate_log_str(fair_results, n_groups=2):
@@ -117,9 +121,9 @@ def get_rec_model(rec_conf: dict, dataset: RecDataset):
     rec_model.load_model_from_path(rec_conf['model_path'])
     rec_model.requires_grad_(False)
 
+    print()
     print('Rec Model Summary: ')
-    summary(rec_model, input_size=[(10,), (10,)], device='cpu', dtypes=[torch.long, torch.long],
-            col_names=['input_size', 'output_size', 'num_params'])
+    summarize(rec_model, input_size=[(10,), (10,)], dtypes=[torch.long, torch.long],)
     print()
 
     return rec_model
