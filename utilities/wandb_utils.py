@@ -29,8 +29,7 @@ def fetch_best_in_sweep(sweep_id: str, wandb_entity_name: str = None, wandb_proj
     :param project_base_directory: The base directory of the project. It will be used to store the model.
     """
 
-    current_host = socket.gethostname()
-    if current_host == 'passionpit.cp.jku.at':
+    if "PycharmProjects" in os.getcwd():
         preamble_path = '~/PycharmProjects'
     else:
         preamble_path = '~'
