@@ -90,8 +90,14 @@ def train_adversarial(adv_config: dict):
     # Optimizer & Scheduler
     adv_optimizer = torch.optim.AdamW(
         [
-            {'params': mod_weights.parameters()},
-            {'params': adv_head.parameters()}
+            {
+                'params': mod_weights.parameters(),
+                'lr': adv_config['lr_deltas'] if 'lr_deltas' in adv_config else adv_config['lr']
+            },
+            {
+                'params': adv_head.parameters(),
+                'lr': adv_config['lr_adv'] if 'lr_adv' in adv_config else adv_config['lr']
+            },
         ],
         lr=adv_config['lr'],
         weight_decay=adv_config['wd']
@@ -159,7 +165,7 @@ def train_adversarial(adv_config: dict):
             adv_optimizer.step()
             adv_optimizer.zero_grad()
 
-        epoch_lr = scheduler.get_last_lr()[0]
+        epoch_lrs = scheduler.get_last_lr()
         scheduler.step()
 
         avg_epoch_loss /= len(data_loaders['train'])
@@ -221,7 +227,8 @@ def train_adversarial(adv_config: dict):
                 'avg_epoch_loss': avg_epoch_loss,
                 'avg_adv_loss': avg_adv_loss,
                 'avg_rec_loss': avg_rec_loss,
-                'epoch_lr': epoch_lr,
+                'epoch_lr_deltas': epoch_lrs[0],
+                'epoch_lr_adv': epoch_lrs[1],
                 'max_delta': mod_weights.deltas.max().item(),
                 'min_delta': mod_weights.deltas.min().item(),
                 'mean_delta': mod_weights.deltas.mean().item(),

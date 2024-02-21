@@ -1,3 +1,5 @@
+import warnings
+
 DEF_EVAL_BATCH_SIZE = 8
 DEF_TRAIN_BATCH_SIZE = 512
 DEF_EVAL_NUM_WORKERS = 6
@@ -16,6 +18,15 @@ def parse_conf(conf: dict, ) -> dict:
     :param conf:
     :return:
     """
+
+    setting_individual_lrs = 'lr_deltas' in conf or 'lr_adv' in conf
+    setting_lam_adv = 'lam_adv' in conf and conf['lam_adv'] != 1
+    setting_grad_scaling = 'gradient_scaling' in conf and conf['gradient_scaling'] != 1
+    if setting_individual_lrs and (setting_lam_adv or setting_grad_scaling):
+        warnings.warn(
+            "You are setting individual learning rates. You also set lambda_adv or gradient_scaling to a value"
+            "different than 1. This may lead to unexpected results. I hope you know what you are doing."
+        )
 
     added_parameters_list = []
 
