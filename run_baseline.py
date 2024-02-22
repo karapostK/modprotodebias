@@ -48,7 +48,8 @@ probe_config = {
     'inner_layers_config': [128],
     'n_epochs': 25,
     'lr': 5e-4,
-    'wd': 1e-5
+    'wd': 1e-5,
+    'eta_min': 1e-6
 }
 
 # Modular Weights

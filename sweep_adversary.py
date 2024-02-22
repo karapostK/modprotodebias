@@ -26,33 +26,35 @@ def train_val_agent():
     print("----- Starting Probe Training -----")
 
     # --- Probe check with default hyperparameters --- #
+    # Note that the probe will be evaluated on the same seed of the adversary.
     probe_config = {
         **adv_config,
         'inner_layers_config': [128],
         'n_epochs': 25,
         'lr': 5e-4,
+        'wd': 1e-5,
+        'eta_min': 1e-6,
     }
 
-    for case in ['last', 'worst_bacc', 'best_recacc']:
-        # Modular Weights
-        mod_weights = AddModularWeights(
-            latent_dim=64,
-            n_delta_sets=n_delta_sets,
-            user_to_delta_set=user_to_delta_set,
-            use_clamping=adv_config['use_clamping']
-        )
-        mod_weights_state_dict = torch.load(
-            os.path.join(save_path, f'{case}.pth'), map_location=adv_config['device']
-        )['mod_weights']
-        mod_weights.load_state_dict(mod_weights_state_dict)
-        mod_weights.requires_grad_(False)
+    # Modular Weights
+    mod_weights = AddModularWeights(
+        latent_dim=64,
+        n_delta_sets=n_delta_sets,
+        user_to_delta_set=user_to_delta_set,
+        use_clamping=adv_config['use_clamping']
+    )
+    mod_weights_state_dict = torch.load(
+        os.path.join(save_path, f'last.pth'), map_location=adv_config['device']
+    )['mod_weights']
+    mod_weights.load_state_dict(mod_weights_state_dict)
+    mod_weights.requires_grad_(False)
 
-        train_probe(
-            probe_config=probe_config,
-            eval_type='test',
-            wandb_log_prefix=f'{case}_',
-            mod_weights=mod_weights
-        )
+    train_probe(
+        probe_config=probe_config,
+        eval_type='test',
+        wandb_log_prefix=f'final_',
+        mod_weights=mod_weights
+    )
 
     wandb.finish()
 

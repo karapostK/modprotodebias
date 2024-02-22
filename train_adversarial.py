@@ -210,7 +210,7 @@ def train_adversarial(adv_config: dict):
             # Save
             torch.save(saving_dict, os.path.join(adv_config['save_path'], 'worst_bacc.pth'))
 
-        if curr_epoch % 5 == 0 and curr_epoch > 0:
+        if curr_epoch % 5 == 0:
             torch.save(saving_dict, os.path.join(adv_config['save_path'], f'epoch_{curr_epoch}.pth'))
 
         # Save last
