@@ -55,6 +55,8 @@ parameters:
     value: cuda
   seed:
     value: 59
+  probe_seed_set:  # If removed, the final probe will only be tested with the value of 'seed'
+    value: [ 59, 60, 61 ]
   verbose:
     value: True
   running_settings:
