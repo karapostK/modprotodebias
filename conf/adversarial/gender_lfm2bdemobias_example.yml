@@ -8,8 +8,8 @@ entity: # TODO: Your username on Wandb
 
 parameters:
   #### Fixed Hyperparameters ####
-  best_run_sweep_id:
-    value: sshfyfwu
+  dataset:
+    value: lfm2bdemobias
   group_type:
     value: 'gender' # gender or age
   delta_on:
