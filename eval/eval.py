@@ -262,15 +262,15 @@ def evaluate_recommender_algorithm(alg: RecommenderAlgorithm, eval_loader: DataL
             i_idxs = torch.arange(eval_loader.dataset.n_items).to(device)
             i_repr = alg.get_item_representations(i_idxs)
 
-            for u_idxs, _, labels in iterator:
+            for u_idxs, labels, exclude_data in iterator:
                 u_idxs = u_idxs.to(device)
                 labels = labels.to(device)
+                exclude_data = exclude_data.to(device)
 
                 u_repr = alg.get_user_representations(u_idxs)
                 out = alg.combine_user_item_representations(u_repr, i_repr)
 
-                batch_mask = torch.tensor(eval_loader.dataset.exclude_data[u_idxs.cpu()].A)
-                out[batch_mask] = -torch.inf
+                out[exclude_data] = -torch.inf
 
                 evaluator.eval_batch(u_idxs, out, labels)
 

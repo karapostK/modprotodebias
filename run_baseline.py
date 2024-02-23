@@ -94,7 +94,7 @@ mod_weights = get_mod_weights_module(
 )
 
 mod_weights_state_dict = torch.load(
-    os.path.join(probe_config['save_path'], 'last.pth'), map_location=probe_config['device']
+    os.path.join(debias_conf['save_path'], 'last.pth'), map_location=probe_config['device']
 )['mod_weights']
 mod_weights.load_state_dict(mod_weights_state_dict)
 mod_weights.requires_grad_(False)

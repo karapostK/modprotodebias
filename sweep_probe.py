@@ -10,7 +10,5 @@ def train_val_agent():
 
     train_probe(probe_config, 'val')
 
-    wandb.finish()
-
 
 train_val_agent()
