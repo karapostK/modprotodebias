@@ -78,6 +78,9 @@ class FairEvaluator:
         metrics_dict['balanced_acc'] = 0
         metrics_dict['unbalanced_acc'] = 0
 
+        if self.n_entries[-1] == 0:
+            return metrics_dict
+
         for group_idx in self.group_metrics:
             metrics_dict[f'recall_group_{group_idx}'] = self.group_metrics[group_idx]['TP'] / self.n_entries[group_idx]
 
