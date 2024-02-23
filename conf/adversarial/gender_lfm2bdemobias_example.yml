@@ -17,7 +17,7 @@ parameters:
 
   # Model Parameters #
   inner_layers_config:
-    value: [ 128 ] # empty list of linear model
+    value: [ 128 ] # empty list for linear model
   use_clamping:
     value: False
 

@@ -48,7 +48,7 @@ debias_conf = {
     'device': 'cuda',
     'seed': 59,
     'verbose': True,
-    'running_settings': {'eval_n_workers': 2, 'train_n_workers': 8},
+    'running_settings': {'eval_n_workers': 2, 'train_n_workers': 6},
     'run_id': run_id,
     'save_path': f'./saved_models/baseline/{run_id}/',
 
