@@ -66,12 +66,12 @@ def train_probe(probe_config: dict,
     reproducible(probe_config['seed'])
 
     # Neural Head
-    layers_config = [64] + probe_config['inner_layers_config'] + [n_groups]
+    layers_config = [probe_config['latent_dim']] + probe_config['inner_layers_config'] + [n_groups]
     probe = NeuralHead(layers_config=layers_config)
 
     print()
     print('Probe Summary: ')
-    summarize(probe, input_size=(10, 64), dtypes=[torch.float])
+    summarize(probe, input_size=(10, probe_config['latent_dim']), dtypes=[torch.float])
     print()
 
     # Optimizer & Scheduler
@@ -91,7 +91,7 @@ def train_probe(probe_config: dict,
     if mod_weights is not None:
         print()
         print('Modular Weights Summary: ')
-        summarize(mod_weights, input_size=[(10, 64), (10,)], dtypes=[torch.float, torch.long])
+        summarize(mod_weights, input_size=[(10, probe_config['latent_dim']), (10,)], dtypes=[torch.float, torch.long])
         print()
         mod_weights.to(probe_config['device'])
 

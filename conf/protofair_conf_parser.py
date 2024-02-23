@@ -34,12 +34,20 @@ def parse_conf(conf: dict, type_run: str) -> dict:
     assert 'dataset' in conf, "Dataset should be specified in the configuration file"
     if 'best_run_sweep_id' not in conf:
         if conf['dataset'] == 'ml1m':
-            conf['best_run_sweep_id'] = 'ib8rad9q'
+            conf['best_run_sweep_id'] = 'hsra1k6i'
         elif conf['dataset'] == 'lfm2bdemobias':
             conf['best_run_sweep_id'] = 'sshfyfwu'
         else:
             raise ValueError(f"Unknown dataset: {conf['dataset']}")
         added_parameters_list.append(f"best_run_sweep_id={conf['best_run_sweep_id']}")
+    if 'latent_dim' not in conf:
+        if conf['dataset'] == 'ml1m':
+            conf['latent_dim'] = 42
+        elif conf['dataset'] == 'lfm2bdemobias':
+            conf['best_run_sweep_id'] = 64
+        else:
+            raise ValueError(f"Unknown dataset: {conf['dataset']}")
+        added_parameters_list.append(f"latent_dim={conf['latent_dim']}")
 
     if 'eval_batch_size' not in conf:
         conf['eval_batch_size'] = DEF_EVAL_BATCH_SIZE

@@ -58,14 +58,14 @@ def train_adversarial(debias_conf: dict):
     reproducible(debias_conf['seed'])
 
     # Neural Head
-    layers_config = [64] + debias_conf['inner_layers_config'] + [n_groups]
+    layers_config = [debias_conf['latent_dim']] + debias_conf['inner_layers_config'] + [n_groups]
     adv_head = NeuralHead(
         layers_config=layers_config,
         gradient_scaling=debias_conf['gradient_scaling']
     )
     print()
     print('Adversarial Head Summary: ')
-    summarize(adv_head, input_size=(10, 64), dtypes=[torch.float])
+    summarize(adv_head, input_size=(10, debias_conf['latent_dim']), dtypes=[torch.float])
     print()
 
     # Modular Weights
@@ -77,7 +77,7 @@ def train_adversarial(debias_conf: dict):
 
     mod_weights = get_mod_weights_module(
         how_use_deltas=debias_conf['how_use_deltas'],
-        latent_dim=64,
+        latent_dim=debias_conf['latent_dim'],
         n_delta_sets=n_delta_sets,
         user_to_delta_set=user_to_delta_set,
         init_std=debias_conf['init_std'],
