@@ -48,7 +48,7 @@ parameters:
   train_batch_size:
     value: 512
   eval_batch_size:
-    32
+    value: 32
 
   # Other
   device:
