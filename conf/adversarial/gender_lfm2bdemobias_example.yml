@@ -1,0 +1,90 @@
+# Yaml Sweep Configuration
+
+program: sweep_debiasing.py
+method: grid
+name: # TODO: Name of the Sweep
+project: fair_rec
+entity: # TODO: Your username on Wandb
+
+parameters:
+  #### Fixed Hyperparameters ####
+  best_run_sweep_id:
+    value: sshfyfwu
+  group_type:
+    value: 'gender' # gender or age
+  delta_on:
+    value: 'users'  # 'all', 'groups', 'users'
+
+  # Model Parameters #
+  inner_layers_config:
+    value: [ 128 ] # empty list of linear model
+  use_clamping:
+    value: False
+
+  # Training Parameters #
+  n_epochs:
+    value: 25
+
+  debiasing_method:
+    value: 'adv' # 'adv' or 'mmd'
+  how_use_deltas:
+    value: 'add' # 'add' or 'multiply'
+  lam:
+    value: 1
+  init_std:
+    value: 0.01
+  gradient_scaling:
+    value: 1
+
+  # Learning Rates
+  lr_adv:
+    value: 1e-3
+  wd:
+    value: 1e-5
+  eta_min:
+    value: 1e-6
+
+  # Batch Sizes
+  train_batch_size:
+    value: 512
+  eval_batch_size:
+    32
+
+  # Other
+  device:
+    value: cuda
+  seed:
+    value: 59
+  verbose:
+    value: True
+  running_settings:
+    parameters:
+      train_n_workers:
+        value: 6
+      eval_n_workers:
+        value: 2
+
+    #### Varying Hyperparameters ####
+
+  # Model Parameters #
+  # Training Parameters #
+  lr_deltas:
+    distribution: categorical
+    values:
+      - 1e-5
+      - 5e-5
+      - 8e-5
+  # Running Parameters #
+
+
+
+
+
+
+
+
+
+
+
+
+
