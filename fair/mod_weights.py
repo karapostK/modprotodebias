@@ -56,7 +56,8 @@ class AddModularWeights(ModularWeights):
         self.init_std = init_std
         self.use_clamping = use_clamping
 
-        self.deltas = nn.Parameter(init_std * torch.randn(self.n_delta_sets, self.latent_dim), requires_grad=True)
+        self.deltas = nn.Parameter(1 + init_std * torch.randn(self.n_delta_sets, self.latent_dim), requires_grad=True)
+
 
         logging.info(f'Built {self.__class__.__name__} module \n')
 
@@ -68,7 +69,7 @@ class AddModularWeights(ModularWeights):
         :return:
         """
         deltas = self.deltas[self.user_to_delta_set[user_idxs]]  # [batch_size, latent_dim]
-        out_repr = in_repr + deltas
+        out_repr = in_repr * deltas
         if self.use_clamping:
             out_repr = torch.clamp(out_repr, 0, 2)
         return out_repr
@@ -95,7 +96,8 @@ class MultiplyModularWeights(ModularWeights):
         :return:
         """
         deltas = self.deltas[self.user_to_delta_set[user_idxs]]  # [batch_size, latent_dim]
-        out_repr = in_repr * deltas
+        # out_repr = in_repr + deltas # Additive Delta
+        out_repr = in_repr * deltas # Scaling Delta
         if self.use_clamping:
             out_repr = torch.clamp(out_repr, 0, 2)
         return out_repr

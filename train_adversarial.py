@@ -16,6 +16,8 @@ from fair.utils import generate_log_str, get_rec_model, get_mod_weights_settings
 from train.rec_losses import RecSampledSoftmaxLoss
 from utilities.utils import reproducible
 from utilities.wandb_utils import fetch_best_in_sweep
+import numpy as np
+import math
 
 
 def train_adversarial(adv_config: dict):
@@ -64,9 +66,12 @@ def train_adversarial(adv_config: dict):
         gradient_scaling=adv_config['gradient_scaling']
     )
     print()
-    print('Adversarial Head Summary: ')
-    summarize(adv_head, input_size=(10, 64), dtypes=[torch.float])
-    print()
+    if adv_config["debiasing"] == "mmd":
+        print('Maximum Mean Discrepancy Debiasing ')
+    elif adv_config["debiasing"] == "adv":
+        print('Adversarial Head Summary: ')
+        summarize(adv_head, input_size=(10, 64), dtypes=[torch.float])
+        print()
 
     # Modular Weights
     n_delta_sets, user_to_delta_set = get_mod_weights_settings(
@@ -92,20 +97,23 @@ def train_adversarial(adv_config: dict):
         [
             {
                 'params': mod_weights.parameters(),
-                'lr': adv_config['lr_deltas'] if 'lr_deltas' in adv_config else adv_config['lr']
+                'lr': adv_config['lr_deltas']
             },
             {
                 'params': adv_head.parameters(),
-                'lr': adv_config['lr_adv'] if 'lr_adv' in adv_config else adv_config['lr']
+                'lr': adv_config['lr_adv'] if adv_config["debiasing"] == "adv" else 0.
             },
         ],
-        lr=adv_config['lr'],
+        # lr=adv_config['lr'],
         weight_decay=adv_config['wd']
     )
     scheduler = CosineAnnealingLR(adv_optimizer, T_max=adv_config['n_epochs'], eta_min=adv_config['eta_min'])
 
     # Loss
-    adv_loss = nn.CrossEntropyLoss(weight=ce_weights.to(adv_config['device']))
+    if adv_config['debiasing'] == 'adv':
+        adv_loss = nn.CrossEntropyLoss(weight=ce_weights.to(adv_config['device']))
+    elif adv_config['debiasing'] == 'mmd':
+        adv_loss  = MMD()
     rec_loss = RecSampledSoftmaxLoss.build_from_conf(rec_conf, data_loaders['train'].dataset)
 
     # Save path
@@ -125,15 +133,16 @@ def train_adversarial(adv_config: dict):
     worst_bacc_epoch = -1
 
     wandb.watch(mod_weights, log='all')
+    tqdm_epoch = trange(adv_config['n_epochs'])
 
-    for curr_epoch in trange(adv_config['n_epochs']):
+    for curr_epoch in tqdm_epoch:
         print(f"Epoch {curr_epoch}")
 
         avg_epoch_loss = 0
         avg_adv_loss = 0
         avg_rec_loss = 0
-
-        for u_idxs, i_idxs, labels in tqdm(data_loaders['train']):
+        tqdm_step = tqdm(data_loaders['train'])
+        for u_idxs, i_idxs, labels in tqdm_step:
             u_idxs = u_idxs.to(adv_config['device'])
             i_idxs = i_idxs.to(adv_config['device'])
             labels = labels.to(adv_config['device'])
@@ -149,10 +158,12 @@ def train_adversarial(adv_config: dict):
             u_repr = u_p, u_other
             rec_scores = rec_model.combine_user_item_representations(u_repr, i_repr)
             rec_loss_value = rec_loss.compute_loss(rec_scores, labels)
-
             ### Adversarial Head ###
             adv_out = adv_head(u_p)
-            adv_loss_value = adv_loss(adv_out, user_to_user_group[u_idxs])
+            if adv_config["debiasing"] == "adv":
+                adv_loss_value = adv_loss(adv_out, user_to_user_group[u_idxs])
+            elif adv_config["debiasing"] == "mmd":
+                adv_loss_value = adv_loss(u_p, user_to_user_group[u_idxs])
 
             ### Total Loss ###
             tot_loss = rec_loss_value + adv_config['lam_adv'] * adv_loss_value
@@ -164,6 +175,12 @@ def train_adversarial(adv_config: dict):
             tot_loss.backward()
             adv_optimizer.step()
             adv_optimizer.zero_grad()
+            tqdm_step.set_description(f"total_loss:{np.round(tot_loss.item(),3)} | "
+                                      f"adv_loss:{np.round(adv_loss_value.item(),3)} |"
+                                      f" rec_loss:{np.round(rec_loss_value.item(),3)} |"
+                                      f" w_deltas:{np.round(mod_weights.deltas[0,0:3].detach().cpu().numpy(),4)} |"
+                                      f" adv_head:{np.round(adv_head.layers[-1].weight[0,0].item(),3)} |")
+            tqdm_step.update()
 
         epoch_lrs = scheduler.get_last_lr()
         scheduler.step()
@@ -171,6 +188,10 @@ def train_adversarial(adv_config: dict):
         avg_epoch_loss /= len(data_loaders['train'])
         avg_adv_loss /= len(data_loaders['train'])
         avg_rec_loss /= len(data_loaders['train'])
+        tqdm_epoch.set_description(f"AVG total_train_loss:{np.round(avg_epoch_loss,3)} | "
+                                   f"AVG adv_train_loss:{np.round(avg_adv_loss,3)} |"
+                                   f"AVG rec_train_loss:{np.round(avg_rec_loss,3)}")
+        tqdm_epoch.update()
 
         rec_results, fair_results = evaluate(
             rec_model=rec_model,
@@ -183,8 +204,8 @@ def train_adversarial(adv_config: dict):
             verbose=True
         )
 
-        print("Epoch {} - Avg. Train Loss is {:.3f} ({:.3f} Adv. Loss - {:.3f} Rec. Loss)"
-              .format(curr_epoch, avg_epoch_loss, avg_adv_loss, avg_rec_loss))
+        # print("Epoch {} - Avg. Train Loss is {:.3f} ({:.3f} Adv. Loss - {:.3f} Rec. Loss)"
+        #       .format(curr_epoch, avg_epoch_loss, avg_adv_loss, avg_rec_loss))
         print(f"Epoch {curr_epoch} - ", generate_log_str(fair_results, n_groups))
 
         saving_dict = {
@@ -236,3 +257,77 @@ def train_adversarial(adv_config: dict):
         )
 
     return n_delta_sets, user_to_delta_set
+
+
+
+
+class MMD(nn.Module):
+    def __init__(self):
+        super(MMD, self).__init__()
+
+    def forward(self, embeddings, labels):
+        # # mask = [0 for label in labels if label != 1]
+        # # labels = torch.tensor(mask).to(labels.device)
+        labels[labels != 1] = 0
+        loss = self.mmd_loss(embeddings, labels, kernel_mul=4, kernel_num=4, fix_sigma=True)
+        return loss
+
+    def mmd_loss(self, embeds, domain_labels, kernel_mul, kernel_num, fix_sigma):
+        loss = torch.tensor(0., device=domain_labels.device)
+        # split into source and target samples
+        unique_dl = domain_labels.unique()
+        # if a batch with samples of only one domain is encountered - return 0 as loss
+        if len(unique_dl) == 1:
+            return loss
+        src_mask = domain_labels == unique_dl[0]
+        tgt_mask = domain_labels == unique_dl[1]
+        # for all embeds calculate the mmd loss and sum them together
+
+        # for embed in embeds:
+            # try:
+        src_embed = embeds[domain_labels == 0]
+        tgt_embed = embeds[domain_labels == 1]
+        embed_loss = self.mmd(src_embed, tgt_embed, kernel_mul, kernel_num, fix_sigma)
+        loss += embed_loss
+            # except:
+            #     return loss
+        return loss
+
+    def gaussian_kernel(self, src_embed, tgt_embed, kernel_mul, kernel_num, fix_sigma):
+        """Given source and target embeddings calculates kernel matrix based on given specific parameters."""
+        if torch.mean(torch.abs(src_embed) + torch.abs(tgt_embed)) <= 1e-7:
+            print("Warning: feature representations tend towards zero. "
+                  "Consider decreasing 'da_lambda' or using lambda schedule.")
+        n_samples = int(src_embed.size()[0] + tgt_embed.size()[0])
+        total = torch.cat([src_embed, tgt_embed], dim=0)
+        total0 = total.unsqueeze(0).expand(int(total.size(0)), int(total.size(0)), int(total.size(1)))
+        total1 = total.unsqueeze(1).expand(int(total.size(0)), int(total.size(0)), int(total.size(1)))
+        l2_distance = ((total0 - total1) ** 2).sum(2)
+        if fix_sigma:
+            bandwidth = fix_sigma
+        else:
+            bandwidth = torch.sum(l2_distance.detach()) / (n_samples ** 2 - n_samples)
+        bandwidth /= kernel_mul ** (kernel_num // 2)  # shift bandwidth to the left
+        bandwidth_list = [bandwidth * (kernel_mul ** i) for i in range(kernel_num)]
+        kernel_val = [torch.exp(-l2_distance / (bandwidth_temp + 1e-5)) for bandwidth_temp in bandwidth_list]
+        return sum(kernel_val)
+
+    def mmd(self, src_embed, tgt_embed, kernel_mul, kernel_num, fix_sigma):
+        src_batch_size = src_embed.size(0)
+        tgt_batch_size = tgt_embed.size(0)
+        # handle case when source and target are not of same size
+        # we extend both to the fixed size 'batch size', because sizes should not vary between batches
+        batch_size = src_batch_size + tgt_batch_size
+        src_repeats = math.ceil(batch_size / src_batch_size)
+        tgt_repeats = math.ceil(batch_size / tgt_batch_size)
+        src_embed_rep = torch.cat([src_embed] * src_repeats, dim=0)[:batch_size]
+        tgt_embed_rep = torch.cat([tgt_embed] * tgt_repeats, dim=0)[:batch_size]
+        kernels = self.gaussian_kernel(src_embed_rep, tgt_embed_rep, kernel_mul, kernel_num, fix_sigma)
+        # use different parts of the kernel matrix to calculate final loss
+        xx = kernels[:batch_size, :batch_size]
+        yy = kernels[batch_size:, batch_size:]
+        xy = kernels[:batch_size, batch_size:]
+        yx = kernels[batch_size:, :batch_size]
+        loss = torch.mean(xx + yy - xy - yx)
+
+        return loss

@@ -7,9 +7,11 @@ from fair.mod_weights import AddModularWeights
 from train_adversarial import train_adversarial
 from train_probe import train_probe
 from utilities.utils import generate_id
+import random
+import numpy as np
 
 WANDB_PROJECT = 'fair_rec'
-WANDB_ENTITY = 'karapost'
+# WANDB_ENTITY = 'domainadaptors'
 
 id = generate_id()
 adv_config = {
@@ -18,18 +20,20 @@ adv_config = {
     'delta_on': 'users',
 
     'inner_layers_config': [128],
-    'use_clamping': True,
+    'use_clamping': False,
 
-    'lr': 1e-5,
+    'lr_adv': 1e-3,
+    "lr_deltas": 2e-4,
     'wd': 1e-5,
     'eta_min': 1e-6,
 
-    'lam_adv': 2.,
+    'lam_adv': 50.,
     'gradient_scaling': 1.,
-    'init_std': .1,
+    'init_std': 0.01,
+    "debiasing": "adv",
 
     'n_epochs': 25,
-    'train_batch_size': 512,
+    'train_batch_size': 128,
     'eval_batch_size': 8,
 
     'device': 'cuda',
@@ -40,17 +44,24 @@ adv_config = {
 
 }
 
-wandb.init(project=WANDB_PROJECT, entity=WANDB_ENTITY, config=adv_config, name=f'baseline_{id}', )
+# for sd in adv_config["seed"]:
+#     torch.manual_seed(sd)
+#     np.random.seed(sd)
+#     random.seed(sd)
+sd = adv_config["seed"]
+wandb.init(project=WANDB_PROJECT, config=adv_config, name=f'{adv_config["debiasing"]}_{adv_config["lam_adv"]}_lr_{adv_config["lr_deltas"]}_{sd}_{id}', )
 n_delta_sets, user_to_delta_set = train_adversarial(adv_config)
 
 probe_config = {
     **adv_config,
     'inner_layers_config': [128],
-    'n_epochs': 25,
+    'n_epochs': 50,
     'lr': 5e-4,
     'wd': 1e-5,
     'eta_min': 1e-6
 }
+print("Probe Config:")
+print(probe_config)
 
 # Modular Weights
 mod_weights = AddModularWeights(
