@@ -1,7 +1,6 @@
 import os
 
 import torch
-from torch import nn
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from tqdm import tqdm
 from tqdm import trange
@@ -9,15 +8,15 @@ from tqdm import trange
 import wandb
 from conf.protofair_conf_parser import parse_conf
 from fair.fair_eval import evaluate
-from fair.neural_head import NeuralHead
-from fair.utils import generate_log_str, get_rec_model, get_mod_weights_settings, \
-    get_dataloaders, get_user_group_data, get_evaluators, summarize, get_mod_weights_module
+from fair.mmd import MMD
+from fair.utils import get_rec_model, get_mod_weights_settings, \
+    get_dataloaders, get_user_group_data, get_evaluators, get_mod_weights_module
 from train.rec_losses import RecSampledSoftmaxLoss
 from utilities.utils import reproducible
 from utilities.wandb_utils import fetch_best_in_sweep
 
 
-def train_adversarial(debias_conf: dict):
+def train_mmd(debias_conf: dict):
     debias_conf = parse_conf(debias_conf, 'debiasing')
 
     rec_conf = fetch_best_in_sweep(
@@ -57,17 +56,6 @@ def train_adversarial(debias_conf: dict):
 
     reproducible(debias_conf['seed'])
 
-    # Neural Head
-    layers_config = [64] + debias_conf['inner_layers_config'] + [n_groups]
-    adv_head = NeuralHead(
-        layers_config=layers_config,
-        gradient_scaling=debias_conf['gradient_scaling']
-    )
-    print()
-    print('Adversarial Head Summary: ')
-    summarize(adv_head, input_size=(10, 64), dtypes=[torch.float])
-    print()
-
     # Modular Weights
     n_delta_sets, user_to_delta_set = get_mod_weights_settings(
         debias_conf['delta_on'],
@@ -91,17 +79,13 @@ def train_adversarial(debias_conf: dict):
                 'params': mod_weights.parameters(),
                 'lr': debias_conf['lr_deltas']
             },
-            {
-                'params': adv_head.parameters(),
-                'lr': debias_conf['lr_adv']
-            },
         ],
         weight_decay=debias_conf['wd']
     )
     scheduler = CosineAnnealingLR(optimizer, T_max=debias_conf['n_epochs'], eta_min=debias_conf['eta_min'])
 
     # Loss
-    adv_loss = nn.CrossEntropyLoss(weight=ce_weights.to(debias_conf['device']))
+    mmd_loss = MMD()
     rec_loss = RecSampledSoftmaxLoss.build_from_conf(rec_conf, data_loaders['train'].dataset)
 
     # Save path
@@ -112,12 +96,9 @@ def train_adversarial(debias_conf: dict):
     user_to_user_group = user_to_user_group.to(debias_conf['device'])
     rec_model.to(debias_conf['device'])
     mod_weights.to(debias_conf['device'])
-    adv_head.to(debias_conf['device'])
 
     best_recacc_value = -torch.inf
     best_recacc_epoch = -1
-    worst_bacc_value = torch.inf
-    worst_bacc_epoch = -1
 
     wandb.watch(mod_weights, log='all')
 
@@ -126,7 +107,7 @@ def train_adversarial(debias_conf: dict):
         print(f"Epoch {curr_epoch}")
 
         avg_epoch_loss = 0
-        avg_adv_loss = 0
+        avg_mmd_loss = 0
         avg_rec_loss = 0
 
         tqdm_step = tqdm(data_loaders['train'])
@@ -147,15 +128,14 @@ def train_adversarial(debias_conf: dict):
             rec_scores = rec_model.combine_user_item_representations(u_repr, i_repr)
             rec_loss_value = rec_loss.compute_loss(rec_scores, labels)
 
-            ### Adversarial Head ###
-            adv_out = adv_head(u_p)
-            adv_loss_value = adv_loss(adv_out, user_to_user_group[u_idxs])
+            ### MMD ###
+            mmd_loss_value = mmd_loss(u_p, user_to_user_group[u_idxs])
 
             ### Total Loss ###
-            tot_loss = rec_loss_value + debias_conf['lam'] * adv_loss_value
+            tot_loss = rec_loss_value + debias_conf['lam'] * mmd_loss_value
 
             avg_epoch_loss += tot_loss.item()
-            avg_adv_loss += adv_loss_value.item()
+            avg_mmd_loss += mmd_loss_value.item()
             avg_rec_loss += rec_loss_value.item()
 
             tot_loss.backward()
@@ -164,8 +144,8 @@ def train_adversarial(debias_conf: dict):
 
             # Setting the description of the tqdm bar
             tqdm_step.set_description(
-                "tot_loss: {:.3f} | adv_loss: {:.3f} | rec_loss: {:.3f} ".format(
-                    tot_loss.item(), adv_loss_value.item(), rec_loss_value.item()
+                "tot_loss: {:.3f} | mmd_loss: {:.3f} | rec_loss: {:.3f} ".format(
+                    tot_loss.item(), mmd_loss_value.item(), rec_loss_value.item()
                 ))
             tqdm_step.update()
 
@@ -173,19 +153,19 @@ def train_adversarial(debias_conf: dict):
         scheduler.step()
 
         avg_epoch_loss /= len(data_loaders['train'])
-        avg_adv_loss /= len(data_loaders['train'])
+        avg_mmd_loss /= len(data_loaders['train'])
         avg_rec_loss /= len(data_loaders['train'])
 
         tqdm_epoch.set_description(
-            "avg_tot_loss: {:.3f} | avg_adv_loss: {:.3f} | avg_rec_loss: {:.3f}".format(
-                avg_epoch_loss, avg_adv_loss, avg_rec_loss
+            "avg_tot_loss: {:.3f} | avg_mmd_loss: {:.3f} | avg_rec_loss: {:.3f}".format(
+                avg_epoch_loss, avg_mmd_loss, avg_rec_loss
             )
         )
         tqdm_epoch.update()
 
-        rec_results, fair_results = evaluate(
+        rec_results, _ = evaluate(
             rec_model=rec_model,
-            neural_head=adv_head,
+            neural_head=None,
             mod_weights=mod_weights,
             eval_loader=data_loaders['val'],
             rec_evaluator=rec_evaluator,
@@ -194,13 +174,10 @@ def train_adversarial(debias_conf: dict):
             verbose=True
         )
 
-        print(f"Epoch {curr_epoch} - ", generate_log_str(fair_results, n_groups))
-
         saving_dict = {
             'mod_weights': mod_weights.state_dict(),
             'epoch': curr_epoch,
             'rec_results': rec_results,
-            'fair_results': fair_results,
         }
 
         if rec_results['ndcg@10'] > best_recacc_value:
@@ -211,14 +188,6 @@ def train_adversarial(debias_conf: dict):
             # Save
             torch.save(saving_dict, os.path.join(debias_conf['save_path'], 'best_recacc.pth'))
 
-        if fair_results['balanced_acc'] < worst_bacc_value:
-            print(f"Epoch {curr_epoch} found worst value.")
-            worst_bacc_value = fair_results['balanced_acc']
-            worst_bacc_epoch = curr_epoch
-
-            # Save
-            torch.save(saving_dict, os.path.join(debias_conf['save_path'], 'worst_bacc.pth'))
-
         if curr_epoch % 5 == 0:
             torch.save(saving_dict, os.path.join(debias_conf['save_path'], f'epoch_{curr_epoch}.pth'))
 
@@ -228,16 +197,12 @@ def train_adversarial(debias_conf: dict):
         wandb.log(
             {
                 **rec_results,
-                **fair_results,
                 'best_recacc_value': best_recacc_value,
-                'worst_bacc_value': worst_bacc_value,
                 'best_recacc_epoch': best_recacc_epoch,
-                'worst_bacc_epoch': worst_bacc_epoch,
                 'avg_epoch_loss': avg_epoch_loss,
-                'avg_adv_loss': avg_adv_loss,
+                'avg_mmd_loss': avg_mmd_loss,
                 'avg_rec_loss': avg_rec_loss,
                 'epoch_lr_deltas': epoch_lrs[0],
-                'epoch_lr_adv': epoch_lrs[1],
                 'max_delta': mod_weights.deltas.max().item(),
                 'min_delta': mod_weights.deltas.min().item(),
                 'mean_delta': mod_weights.deltas.mean().item(),

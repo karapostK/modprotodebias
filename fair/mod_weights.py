@@ -83,7 +83,7 @@ class MultiplyModularWeights(ModularWeights):
         self.use_clamping = use_clamping
 
         # Deltas are initialized with a normal distribution with mean 1 and std init_std
-        self.deltas = nn.Parameter(init_std * (1 + torch.randn(self.n_delta_sets, self.latent_dim)), requires_grad=True)
+        self.deltas = nn.Parameter(1 + init_std * torch.randn(self.n_delta_sets, self.latent_dim), requires_grad=True)
 
         logging.info(f'Built {self.__class__.__name__} module \n')
 

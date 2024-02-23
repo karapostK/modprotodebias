@@ -23,7 +23,7 @@ def train_probe(probe_config: dict,
                 ):
     assert eval_type in ['val', 'test'], "eval_type must be either 'val' or 'test'"
 
-    probe_config = parse_conf(probe_config)
+    probe_config = parse_conf(probe_config, 'probing')
     # --- Fetching the Best Run Configuration --- #
     rec_conf = fetch_best_in_sweep(
         probe_config['best_run_sweep_id'],
@@ -75,9 +75,9 @@ def train_probe(probe_config: dict,
     print()
 
     # Optimizer & Scheduler
-    probe_optimizer = torch.optim.AdamW(probe.parameters(), lr=probe_config['lr'], weight_decay=probe_config['wd'])
-    probe_scheduler = CosineAnnealingLR(probe_optimizer, T_max=probe_config['n_epochs'],
-                                        eta_min=probe_config['eta_min'])
+    optimizer = torch.optim.AdamW(probe.parameters(), lr=probe_config['lr'], weight_decay=probe_config['wd'])
+    scheduler = CosineAnnealingLR(optimizer, T_max=probe_config['n_epochs'],
+                                  eta_min=probe_config['eta_min'])
 
     # Loss
     probe_loss = nn.CrossEntropyLoss(weight=ce_weights.to(probe_config['device']))
@@ -98,7 +98,8 @@ def train_probe(probe_config: dict,
     best_value = -torch.inf
     best_epoch = -1
 
-    for curr_epoch in trange(probe_config['n_epochs']):
+    tqdm_epoch = trange(probe_config['n_epochs'])
+    for curr_epoch in tqdm_epoch:
         print(f"Epoch {curr_epoch}")
 
         avg_epoch_loss = 0
@@ -120,13 +121,16 @@ def train_probe(probe_config: dict,
             avg_epoch_loss += probe_loss_value.item()
 
             probe_loss_value.backward()
-            probe_optimizer.step()
-            probe_optimizer.zero_grad()
+            optimizer.step()
+            optimizer.zero_grad()
 
-        epoch_lr = probe_scheduler.get_last_lr()[0]
-        probe_scheduler.step()
+        epoch_lr = scheduler.get_last_lr()[0]
+        scheduler.step()
 
-        avg_epoch_loss /= math.ceil(len(u_idxs) / probe_config['train_batch_size'])
+        avg_epoch_loss /= (math.ceil(len(u_idxs) / probe_config['train_batch_size']))
+
+        tqdm_epoch.set_description("avg_epoch_loss: {:.3f} ".format(avg_epoch_loss))
+        tqdm_epoch.update()
 
         rec_results, fair_results = evaluate(
             rec_model=rec_model,
@@ -139,7 +143,6 @@ def train_probe(probe_config: dict,
             verbose=True
         )
 
-        print("Epoch {} - Avg. Train Loss is {:.3f}".format(curr_epoch, avg_epoch_loss))
         print(f"Epoch {curr_epoch} - ", generate_log_str(fair_results, n_groups))
 
         if fair_results['balanced_acc'] > best_value:

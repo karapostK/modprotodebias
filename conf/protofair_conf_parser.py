@@ -1,23 +1,24 @@
 import warnings
 
-DEF_EVAL_BATCH_SIZE = 8
-DEF_TRAIN_BATCH_SIZE = 512
-DEF_EVAL_NUM_WORKERS = 6
+DEF_EVAL_BATCH_SIZE = 32
+DEF_TRAIN_BATCH_SIZE = 128
+DEF_EVAL_NUM_WORKERS = 2
 DEF_TRAIN_NUM_WORKERS = 6
 DEF_INIT_STD = .1
 DEF_ETA_MIN = 1e-6
 DEF_DELTA_ON = 'user'
 DEF_WD = 1e-5
 DEF_GRADIENT_SCALING = 1
-DEF_USE_CLAMPING = True
 
 
-def parse_conf(conf: dict, ) -> dict:
+def parse_conf(conf: dict, type_run: str) -> dict:
     """
     Placing default parameters if not present in the configuration file
+    :param type_run:
     :param conf:
     :return:
     """
+    assert type_run in ['debiasing', 'probing'], "Unknown type of run"
 
     setting_individual_lrs = 'lr_deltas' in conf or 'lr_adv' in conf
     setting_lam_adv = 'lam_adv' in conf and conf['lam_adv'] != 1
@@ -30,6 +31,16 @@ def parse_conf(conf: dict, ) -> dict:
 
     added_parameters_list = []
 
+    assert 'dataset' in conf, "Dataset should be specified in the configuration file"
+    if 'best_run_sweep_id' not in conf:
+        if conf['dataset'] == 'ml1m':
+            conf['best_run_sweep_id'] = 'ib8rad9q'
+        elif conf['dataset'] == 'lfm2bdemobias':
+            conf['best_run_sweep_id'] = 'sshfyfwu'
+        else:
+            raise ValueError(f"Unknown dataset: {conf['dataset']}")
+        added_parameters_list.append(f"best_run_sweep_id={conf['best_run_sweep_id']}")
+
     if 'eval_batch_size' not in conf:
         conf['eval_batch_size'] = DEF_EVAL_BATCH_SIZE
         added_parameters_list.append(f"eval_batch_size={conf['eval_batch_size']}")
@@ -37,24 +48,23 @@ def parse_conf(conf: dict, ) -> dict:
         conf['train_batch_size'] = DEF_TRAIN_BATCH_SIZE
         added_parameters_list.append(f"train_batch_size={conf['train_batch_size']}")
 
-    if 'init_std' not in conf:
-        conf['init_std'] = DEF_INIT_STD
-        added_parameters_list.append(f"init_std={conf['init_std']}")
+    if type_run == 'debiasing':
+        if 'init_std' not in conf:
+            conf['init_std'] = DEF_INIT_STD
+            added_parameters_list.append(f"init_std={conf['init_std']}")
+        if 'delta_on' not in conf:
+            conf['delta_on'] = DEF_DELTA_ON
+            added_parameters_list.append(f"delta_on={conf['delta_on']}")
+        if 'gradient_scaling' not in conf:
+            conf['gradient_scaling'] = DEF_GRADIENT_SCALING
+            added_parameters_list.append(f"gradient_scaling={conf['gradient_scaling']}")
+
     if 'eta_min' not in conf:
         conf['eta_min'] = DEF_ETA_MIN
         added_parameters_list.append(f"eta_min={conf['eta_min']}")
-    if 'delta_on' not in conf:
-        conf['delta_on'] = DEF_DELTA_ON
-        added_parameters_list.append(f"delta_on={conf['delta_on']}")
     if 'wd' not in conf:
         conf['wd'] = DEF_WD
         added_parameters_list.append(f"wd={conf['wd']}")
-    if 'gradient_scaling' not in conf:
-        conf['gradient_scaling'] = DEF_GRADIENT_SCALING
-        added_parameters_list.append(f"gradient_scaling={conf['gradient_scaling']}")
-    if 'use_clamping' not in conf:
-        conf['use_clamping'] = DEF_USE_CLAMPING
-        added_parameters_list.append(f"use_clamping={conf['use_clamping']}")
 
     if 'running_settings' not in conf:
         conf['running_settings'] = dict()

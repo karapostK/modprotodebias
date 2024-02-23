@@ -3,62 +3,96 @@ import os
 import torch
 
 import wandb
-from fair.mod_weights import AddModularWeights
+from conf.probe.probe_configs import probe_configs
+from fair.utils import generate_run_name, get_mod_weights_module
 from train_adversarial import train_adversarial
+from train_mmd import train_mmd
 from train_probe import train_probe
 from utilities.utils import generate_id
 
 WANDB_PROJECT = 'fair_rec'
-WANDB_ENTITY = 'karapost'
 
-id = generate_id()
-adv_config = {
-    'best_run_sweep_id': 'sshfyfwu',
+run_id = generate_id()
+
+debias_conf = {
+    # --- General --- #
+    'dataset': 'lfm2bdemobias',
     'group_type': 'gender',
     'delta_on': 'users',
 
+    # --- Model --- #
     'inner_layers_config': [128],
-    'use_clamping': True,
+    'use_clamping': False,
 
-    'lr': 1e-5,
+    # --- Training --- #
+    'n_epochs': 25,
+
+    # Debiasing
+    'debiasing_method': 'adv',  # 'adv' or 'mmd'
+    'how_use_deltas': 'multiply',  # 'add' or 'multiply'
+    'lam': 50.,  # Strength  of the debiasing
+    'init_std': 0.01,
+    'gradient_scaling': 1.,  # Ignored if debiasing_method == 'mmd'
+
+    # Learning Rates
+    'lr_adv': 1e-3,  # Ignored if debiasing_method == 'mmd'
+    'lr_deltas': 2e-4,
     'wd': 1e-5,
     'eta_min': 1e-6,
 
-    'lam_adv': 2.,
-    'gradient_scaling': 1.,
-    'init_std': .1,
+    # Batch Sizes
+    'train_batch_size': 128,
+    'eval_batch_size': 32,
 
-    'n_epochs': 25,
-    'train_batch_size': 512,
-    'eval_batch_size': 8,
-
+    # --- Others --- #
     'device': 'cuda',
     'seed': 59,
     'verbose': True,
-    'running_settings': {'eval_n_workers': 3, 'train_n_workers': 8},
-    'save_path': f'./saved_models/baseline/{id}/',
+    'running_settings': {'eval_n_workers': 2, 'train_n_workers': 8},
+    'run_id': run_id,
+    'save_path': f'./saved_models/baseline/{run_id}/',
 
 }
+# Change here if you want to give your run a different name
+run_name = generate_run_name(debias_conf, ['debiasing_method', 'lam', 'lr_deltas', 'seed', 'run_id'])
 
-wandb.init(project=WANDB_PROJECT, entity=WANDB_ENTITY, config=adv_config, name=f'baseline_{id}', )
-n_delta_sets, user_to_delta_set = train_adversarial(adv_config)
+wandb.init(project=WANDB_PROJECT, config=debias_conf, name=run_name)
 
+print("------ Debiasing -----")
+if debias_conf['debiasing_method'] == 'adv':
+    print("Using Adversarial Debiasing")
+    n_delta_sets, user_to_delta_set = train_adversarial(debias_conf)
+elif debias_conf['debiasing_method'] == 'mmd':
+    print("Using MMD Debiasing")
+    n_delta_sets, user_to_delta_set = train_mmd(debias_conf)
+else:
+    raise ValueError(f"Unknown debiasing method: {debias_conf['debiasing_method']}")
+
+print("----- Debiasing is over -----")
+print("----- Starting Final Attack -----")
+
+# Refer to the ./conf/probe/probe_configs.py file for the configuration
+probe_config = probe_configs[debias_conf['dataset']][debias_conf['group_type']]
+
+# Additional options
 probe_config = {
-    **adv_config,
-    'inner_layers_config': [128],
-    'n_epochs': 25,
-    'lr': 5e-4,
-    'wd': 1e-5,
-    'eta_min': 1e-6
+    **probe_config,
+    # --- Others --- #
+    'device': 'cuda',
+    'seed': 59,
+    'verbose': True,
+    'running_settings': {'eval_n_workers': 2, 'train_n_workers': 8},
 }
 
 # Modular Weights
-mod_weights = AddModularWeights(
+mod_weights = get_mod_weights_module(
+    how_use_deltas=debias_conf['how_use_deltas'],
     latent_dim=64,
     n_delta_sets=n_delta_sets,
     user_to_delta_set=user_to_delta_set,
-    use_clamping=probe_config['use_clamping']
+    use_clamping=debias_conf['use_clamping']
 )
+
 mod_weights_state_dict = torch.load(
     os.path.join(probe_config['save_path'], 'last.pth'), map_location=probe_config['device']
 )['mod_weights']

@@ -1,3 +1,4 @@
+import typing
 from collections import defaultdict
 
 import torch
@@ -98,15 +99,15 @@ class FairEvaluator:
 
 
 def evaluate(rec_model: PrototypeWrapper,
-             neural_head: NeuralHead,
+             neural_head: typing.Union[NeuralHead, None],
              eval_loader: torch.utils.data.DataLoader,
              rec_evaluator: FullEvaluator,
              fair_evaluator: FairEvaluator,
              mod_weights: ModularWeights = None,
              device: str = 'cpu',
              verbose: bool = False):
-
-    neural_head.eval()
+    if neural_head is not None:
+        neural_head.eval()
 
     if verbose:
         iterator = tqdm(eval_loader)
@@ -139,12 +140,14 @@ def evaluate(rec_model: PrototypeWrapper,
             rec_evaluator.eval_batch(u_idxs, rec_scores, labels)
 
             # Fairness Evaluation
-            attr_scores = neural_head(u_p)
+            if neural_head is not None:
+                attr_scores = neural_head(u_p)
 
-            fair_evaluator.eval_batch(u_idxs, attr_scores)
+                fair_evaluator.eval_batch(u_idxs, attr_scores)
 
     rec_results = rec_evaluator.get_results()
     fair_results = fair_evaluator.get_results()
 
-    neural_head.train()
+    if neural_head is not None:
+        neural_head.train()
     return rec_results, fair_results

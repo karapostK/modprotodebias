@@ -1,4 +1,5 @@
 from functools import partial
+from typing import List
 
 import torch
 from torchinfo import summary
@@ -9,6 +10,7 @@ from data.dataset import RecDataset
 from eval.eval import FullEvaluator
 from eval.metrics import ndcg_at_k_batch
 from fair.fair_eval import FairEvaluator
+from fair.mod_weights import AddModularWeights, MultiplyModularWeights
 
 summarize = partial(summary, col_names=['input_size', 'output_size', 'num_params'], device='cpu', )
 
@@ -123,7 +125,7 @@ def get_rec_model(rec_conf: dict, dataset: RecDataset):
 
     print()
     print('Rec Model Summary: ')
-    summarize(rec_model, input_size=[(10,), (10,)], dtypes=[torch.long, torch.long],)
+    summarize(rec_model, input_size=[(10,), (10,)], dtypes=[torch.long, torch.long], )
     print()
 
     return rec_model
@@ -179,3 +181,52 @@ def get_mod_weights_settings(delta_on: str, train_dataset, group_type: str = Non
         raise ValueError(f'Unknown value for delta_on: {delta_on}')
 
     return n_delta_sets, user_to_delta_set
+
+
+def get_mod_weights_module(how_use_deltas: str, latent_dim: int, n_delta_sets: int, user_to_delta_set: torch.tensor,
+                           init_std: float = .01, use_clamping: bool = False):
+    """
+    Returns the modular weights module.
+    :param how_use_deltas: Whether to add or multiply the deltas
+    :param latent_dim: Dimension of the representation
+    :param n_delta_sets: Number of delta sets to use
+    :param user_to_delta_set: How the user idxs are mapped to the delta sets. Shape is [n_users]
+    :param init_std: The standard deviation used for initializing the deltas
+    :param use_clamping: Whether to use clamping
+    :return:
+    """
+    assert how_use_deltas in ['add', 'multiply'], f'Unknown value for how_use_deltas: {how_use_deltas}'
+
+    if how_use_deltas == 'add':
+        mod_weights_class = AddModularWeights
+    elif how_use_deltas == 'multiply':
+        mod_weights_class = MultiplyModularWeights
+    else:
+        raise ValueError('No valid method for modular weights specified')
+
+    mod_weights = mod_weights_class(
+        latent_dim=latent_dim,
+        n_delta_sets=n_delta_sets,
+        user_to_delta_set=user_to_delta_set,
+        init_std=init_std,
+        use_clamping=use_clamping
+    )
+
+    print()
+    print('Modular Weights Summary: ')
+    summarize(mod_weights, input_size=[(10, latent_dim), (10,)], dtypes=[torch.float, torch.long])
+    print()
+    return mod_weights
+
+
+def generate_run_name(conf: dict, list_of_keys: List[str]):
+    """
+    Generate a run name based on the configuration and the keys to be included
+    :param conf: Configuration dictionary
+    :param list_of_keys: Keys to be included in the run name
+    :return:
+    """
+    run_name = ''
+    for key in list_of_keys:
+        run_name += f'{key}_{conf[key]}_'
+    return run_name
