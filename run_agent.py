@@ -1,10 +1,10 @@
+import argparse
 import os
 import signal
-import sys
-import argparse
 import subprocess
-from time import sleep
+import sys
 from datetime import datetime
+from time import sleep
 
 _print = print
 
@@ -47,7 +47,7 @@ if __name__ == '__main__':
     # start all processes
     for i in range(n_parallel):
         for g in gpus:
-            command = f'CUDA_VISIBLE_DEVICES={g} wandb agent karapost/protofair/{sweep_id}'
+            command = f'CUDA_VISIBLE_DEVICES={g} wandb agent {sweep_id}'
             print(f'Launching command "{command}" as {i}. process on gpu {g}')
 
             kwargs = {}
