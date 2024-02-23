@@ -87,7 +87,7 @@ probe_config = {
 # Modular Weights
 mod_weights = get_mod_weights_module(
     how_use_deltas=debias_conf['how_use_deltas'],
-    latent_dim=64,
+    latent_dim=debias_conf['latent_dim'],
     n_delta_sets=n_delta_sets,
     user_to_delta_set=user_to_delta_set,
     use_clamping=debias_conf['use_clamping']
