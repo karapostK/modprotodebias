@@ -44,7 +44,7 @@ def parse_conf(conf: dict, type_run: str) -> dict:
         if conf['dataset'] == 'ml1m':
             conf['latent_dim'] = 42
         elif conf['dataset'] == 'lfm2bdemobias':
-            conf['best_run_sweep_id'] = 64
+            conf['latent_dim'] = 64
         else:
             raise ValueError(f"Unknown dataset: {conf['dataset']}")
         added_parameters_list.append(f"latent_dim={conf['latent_dim']}")
