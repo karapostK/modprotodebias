@@ -152,7 +152,7 @@ def train_adversarial(debias_conf: dict):
             adv_loss_value = adv_loss(adv_out, user_to_user_group[u_idxs])
 
             ### Total Loss ###
-            tot_loss = rec_loss_value + debias_conf['lam'] * adv_loss_value
+            tot_loss = debias_conf['lam_rec'] * rec_loss_value + debias_conf['lam'] * adv_loss_value
 
             avg_epoch_loss += tot_loss.item()
             avg_adv_loss += adv_loss_value.item()

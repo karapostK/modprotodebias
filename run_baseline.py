@@ -26,6 +26,7 @@ debias_conf = {
 
     # --- Training --- #
     'n_epochs': 25,
+    # 'lam_rec': 0, # Watch out for this one. Use it only for debugging purposes.
 
     # Debiasing
     'debiasing_method': 'adv',  # 'adv' or 'mmd'

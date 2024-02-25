@@ -132,7 +132,7 @@ def train_mmd(debias_conf: dict):
             mmd_loss_value = mmd_loss(u_p, user_to_user_group[u_idxs])
 
             ### Total Loss ###
-            tot_loss = rec_loss_value + debias_conf['lam'] * mmd_loss_value
+            tot_loss = debias_conf['lam_rec'] * rec_loss_value + debias_conf['lam'] * mmd_loss_value
 
             avg_epoch_loss += tot_loss.item()
             avg_mmd_loss += mmd_loss_value.item()

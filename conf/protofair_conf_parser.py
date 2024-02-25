@@ -9,6 +9,7 @@ DEF_ETA_MIN = 1e-6
 DEF_DELTA_ON = 'user'
 DEF_WD = 1e-5
 DEF_GRADIENT_SCALING = 1
+DEF_LAM_REC = 1.
 
 
 def parse_conf(conf: dict, type_run: str) -> dict:
@@ -55,6 +56,21 @@ def parse_conf(conf: dict, type_run: str) -> dict:
     if 'train_batch_size' not in conf:
         conf['train_batch_size'] = DEF_TRAIN_BATCH_SIZE
         added_parameters_list.append(f"train_batch_size={conf['train_batch_size']}")
+    if 'eta_min' not in conf:
+        conf['eta_min'] = DEF_ETA_MIN
+        added_parameters_list.append(f"eta_min={conf['eta_min']}")
+    if 'wd' not in conf:
+        conf['wd'] = DEF_WD
+        added_parameters_list.append(f"wd={conf['wd']}")
+
+    if 'running_settings' not in conf:
+        conf['running_settings'] = dict()
+    if 'eval_n_workers' not in conf['running_settings']:
+        conf['running_settings']['eval_n_workers'] = DEF_EVAL_NUM_WORKERS
+        added_parameters_list.append(f"eval_n_workers={conf['running_settings']['eval_n_workers']}")
+    if 'train_n_workers' not in conf['running_settings']:
+        conf['running_settings']['train_n_workers'] = DEF_TRAIN_NUM_WORKERS
+        added_parameters_list.append(f"train_n_workers={conf['running_settings']['train_n_workers']}")
 
     if type_run == 'debiasing':
         if 'init_std' not in conf:
@@ -66,23 +82,15 @@ def parse_conf(conf: dict, type_run: str) -> dict:
         if 'gradient_scaling' not in conf:
             conf['gradient_scaling'] = DEF_GRADIENT_SCALING
             added_parameters_list.append(f"gradient_scaling={conf['gradient_scaling']}")
-
-    if 'eta_min' not in conf:
-        conf['eta_min'] = DEF_ETA_MIN
-        added_parameters_list.append(f"eta_min={conf['eta_min']}")
-    if 'wd' not in conf:
-        conf['wd'] = DEF_WD
-        added_parameters_list.append(f"wd={conf['wd']}")
-
-    if 'running_settings' not in conf:
-        conf['running_settings'] = dict()
-
-    if 'eval_n_workers' not in conf['running_settings']:
-        conf['running_settings']['eval_n_workers'] = DEF_EVAL_NUM_WORKERS
-        added_parameters_list.append(f"eval_n_workers={conf['running_settings']['eval_n_workers']}")
-    if 'train_n_workers' not in conf['running_settings']:
-        conf['running_settings']['train_n_workers'] = DEF_TRAIN_NUM_WORKERS
-        added_parameters_list.append(f"train_n_workers={conf['running_settings']['train_n_workers']}")
+        # Useful for debugging
+        if 'lam_rec' not in conf:
+            conf['lam_rec'] = DEF_LAM_REC
+            added_parameters_list.append(f"lam_rec={conf['lam_rec']}")
+        else:
+            if conf['lam_rec'] != DEF_LAM_REC:
+                warnings.warn(
+                    "You are setting lambda_rec to a value different than 1. I hope you know what you are doing."
+                )
 
     print(f"Added parameters: {', '.join(added_parameters_list)}")
 
