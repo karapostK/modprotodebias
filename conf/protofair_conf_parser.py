@@ -91,6 +91,12 @@ def parse_conf(conf: dict, type_run: str) -> dict:
                 warnings.warn(
                     "You are setting lambda_rec to a value different than 1. I hope you know what you are doing."
                 )
+        if 'remove_lam_from_deltas' in conf:
+            conf['gradient_scaling'] = 1 / conf['lam']
+            warnings.warn(
+                "You are setting remove_lam_from_deltas. I hope you know what you are doing."
+            )
+            added_parameters_list.append(f"gradient_scaling={conf['gradient_scaling']}")
 
     print(f"Added parameters: {', '.join(added_parameters_list)}")
 
