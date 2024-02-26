@@ -13,6 +13,8 @@ class MMD(nn.Module):
         # # mask = [0 for label in labels if label != 1]
         # # labels = torch.tensor(mask).to(labels.device)
         labels[labels != self.default_class] = 0
+        if self.default_class != 1:
+            labels[labels == self.default_class] = 1
         loss = self.mmd_loss(embeddings, labels, kernel_mul=4, kernel_num=4, fix_sigma=True)
         return loss
 
