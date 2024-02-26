@@ -5,13 +5,14 @@ from torch import nn
 
 
 class MMD(nn.Module):
-    def __init__(self):
+    def __init__(self, default_class: int = 1):
         super(MMD, self).__init__()
+        self.default_class = default_class
 
     def forward(self, embeddings, labels):
         # # mask = [0 for label in labels if label != 1]
         # # labels = torch.tensor(mask).to(labels.device)
-        labels[labels != 1] = 0
+        labels[labels != self.default_class] = 0
         loss = self.mmd_loss(embeddings, labels, kernel_mul=4, kernel_num=4, fix_sigma=True)
         return loss
 

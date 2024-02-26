@@ -98,6 +98,17 @@ def parse_conf(conf: dict, type_run: str) -> dict:
             )
             added_parameters_list.append(f"gradient_scaling={conf['gradient_scaling']}")
 
+        if 'mmd_default_class' not in conf:
+            if conf['group_type'] == 'gender':
+                conf['mmd_default_class'] = 1
+            elif conf['group_type'] == 'age':
+                if conf['dataset'] == 'ml1m':
+                    conf['mmd_default_class'] = 2
+                elif conf['dataset'] == 'lfm2bdemobias':
+                    conf['mmd_default_class'] = 1
+
+            added_parameters_list.append(f"mmd_default_class={conf['mmd_default_class']}")
+
     print(f"Added parameters: {', '.join(added_parameters_list)}")
 
     print(f"Current Configuration: {conf}")
