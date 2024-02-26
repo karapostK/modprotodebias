@@ -129,7 +129,7 @@ def train_mmd(debias_conf: dict):
             rec_loss_value = rec_loss.compute_loss(rec_scores, labels)
 
             ### MMD ###
-            mmd_loss_value = mmd_loss(u_p, user_to_user_group[u_idxs].copy())
+            mmd_loss_value = mmd_loss(u_p, user_to_user_group[u_idxs])
 
             ### Total Loss ###
             tot_loss = debias_conf['lam_rec'] * rec_loss_value + debias_conf['lam'] * mmd_loss_value
