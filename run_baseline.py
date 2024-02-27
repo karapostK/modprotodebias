@@ -21,7 +21,7 @@ debias_conf = {
     'delta_on': 'users',
 
     # --- Model --- #
-    'inner_layers_config': [128],
+    'inner_layers_config': [512],
     'use_clamping': False,
 
     # --- Training --- #
@@ -31,13 +31,14 @@ debias_conf = {
     # Debiasing
     'debiasing_method': 'adv',  # 'adv' or 'mmd'
     'how_use_deltas': 'multiply',  # 'add' or 'multiply'
-    'lam': 50.,  # Strength  of the debiasing
+    'lam': 1.,  # Strength  of the debiasing
     'init_std': 0.01,
     'gradient_scaling': 1.,  # Ignored if debiasing_method == 'mmd'
+    'adv_n_heads': 1,  # Ignored if debiasing_method == 'mmd'
 
     # Learning Rates
     'lr_adv': 1e-3,  # Ignored if debiasing_method == 'mmd'
-    'lr_deltas': 2e-4,
+    'lr_deltas': 5e-5,
     'wd': 1e-5,
     'eta_min': 1e-6,
 

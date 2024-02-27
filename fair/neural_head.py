@@ -55,3 +55,20 @@ class NeuralHead(nn.Module):
     def predict(self, u_vect: torch.tensor):
         out = self.layers(u_vect)
         return torch.argmax(out, dim=1)
+
+
+class MultiHead(nn.Module):
+    def __init__(self, n_heads: int, layers_config: typing.List[int], gradient_scaling: float = None):
+        super().__init__()
+        self.n_heads = n_heads
+        self.heads = nn.ModuleList([NeuralHead(layers_config) for _ in range(n_heads)])
+        self.layers_config = layers_config
+        self.gradient_scaling = gradient_scaling
+        self.grl_layer = None
+        if self.gradient_scaling is not None:
+            self.grl_layer = GradientReversalLayer(grad_scaling=self.gradient_scaling)
+
+    def forward(self, u_vect: torch.tensor):
+        if self.grl_layer is not None:
+            u_vect = self.grl_layer(u_vect)
+        return torch.stack([head(u_vect) for head in self.heads], dim=1)

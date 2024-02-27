@@ -7,7 +7,7 @@ from tqdm import tqdm
 from algorithms.base_classes import PrototypeWrapper
 from eval.eval import FullEvaluator
 from fair.mod_weights import ModularWeights
-from fair.neural_head import NeuralHead
+from fair.neural_head import NeuralHead, MultiHead
 
 
 class FairEvaluator:
@@ -102,7 +102,7 @@ class FairEvaluator:
 
 
 def evaluate(rec_model: PrototypeWrapper,
-             neural_head: typing.Union[NeuralHead, None],
+             neural_head: typing.Union[NeuralHead, None, MultiHead],
              eval_loader: torch.utils.data.DataLoader,
              rec_evaluator: FullEvaluator,
              fair_evaluator: FairEvaluator,
@@ -145,6 +145,8 @@ def evaluate(rec_model: PrototypeWrapper,
             # Fairness Evaluation
             if neural_head is not None:
                 attr_scores = neural_head(u_p)
+                if len(attr_scores.shape) == 3:
+                    attr_scores = attr_scores.mean(dim=1)
 
                 fair_evaluator.eval_batch(u_idxs, attr_scores)
 

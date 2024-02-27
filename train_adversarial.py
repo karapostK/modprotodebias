@@ -9,7 +9,7 @@ from tqdm import trange
 import wandb
 from conf.protofair_conf_parser import parse_conf
 from fair.fair_eval import evaluate
-from fair.neural_head import NeuralHead
+from fair.neural_head import MultiHead
 from fair.utils import generate_log_str, get_rec_model, get_mod_weights_settings, \
     get_dataloaders, get_user_group_data, get_evaluators, summarize, get_mod_weights_module
 from train.rec_losses import RecSampledSoftmaxLoss
@@ -59,9 +59,10 @@ def train_adversarial(debias_conf: dict):
 
     # Neural Head
     layers_config = [debias_conf['latent_dim']] + debias_conf['inner_layers_config'] + [n_groups]
-    adv_head = NeuralHead(
-        layers_config=layers_config,
-        gradient_scaling=debias_conf['gradient_scaling']
+    adv_head = MultiHead(
+        debias_conf['adv_n_heads'],
+        layers_config,
+        debias_conf['gradient_scaling']
     )
     print()
     print('Adversarial Head Summary: ')
@@ -148,8 +149,10 @@ def train_adversarial(debias_conf: dict):
             rec_loss_value = rec_loss.compute_loss(rec_scores, labels)
 
             ### Adversarial Head ###
-            adv_out = adv_head(u_p)
-            adv_loss_value = adv_loss(adv_out, user_to_user_group[u_idxs])
+            adv_out = adv_head(u_p)  # Shape is [batch_size, n_heads, n_groups]
+            adv_out = adv_out.reshape(-1, n_groups)
+            adv_labels = torch.repeat_interleave(user_to_user_group[u_idxs], repeats=debias_conf['adv_n_heads'])
+            adv_loss_value = adv_loss(adv_out, adv_labels)
 
             ### Total Loss ###
             tot_loss = debias_conf['lam_rec'] * rec_loss_value + debias_conf['lam'] * adv_loss_value

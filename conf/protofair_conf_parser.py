@@ -20,6 +20,9 @@ def parse_conf(conf: dict, type_run: str) -> dict:
     :return:
     """
     assert type_run in ['debiasing', 'probing'], "Unknown type of run"
+    assert 'group_type' in conf, "Group type should be specified in the configuration file"
+    if type_run == 'debiasing':
+        assert 'debiasing_method' in conf, "Debiasing method should be specified in the configuration file"
 
     setting_individual_lrs = 'lr_deltas' in conf or 'lr_adv' in conf
     setting_lam_adv = 'lam_adv' in conf and conf['lam_adv'] != 1
@@ -98,16 +101,21 @@ def parse_conf(conf: dict, type_run: str) -> dict:
             )
             added_parameters_list.append(f"gradient_scaling={conf['gradient_scaling']}")
 
-        if 'mmd_default_class' not in conf:
-            if conf['group_type'] == 'gender':
-                conf['mmd_default_class'] = 1
-            elif conf['group_type'] == 'age':
-                if conf['dataset'] == 'ml1m':
-                    conf['mmd_default_class'] = 2
-                elif conf['dataset'] == 'lfm2bdemobias':
+        if conf['debiasing_method'] == 'adv':
+            if 'adv_n_heads' not in conf:
+                conf['adv_n_heads'] = 1
+                added_parameters_list.append(f"adv_n_heads={conf['adv_n_heads']}")
+        elif conf['debiasing_method'] == 'mmd':
+            if 'mmd_default_class' not in conf:
+                if conf['group_type'] == 'gender':
                     conf['mmd_default_class'] = 1
+                elif conf['group_type'] == 'age':
+                    if conf['dataset'] == 'ml1m':
+                        conf['mmd_default_class'] = 2
+                    elif conf['dataset'] == 'lfm2bdemobias':
+                        conf['mmd_default_class'] = 1
 
-            added_parameters_list.append(f"mmd_default_class={conf['mmd_default_class']}")
+                added_parameters_list.append(f"mmd_default_class={conf['mmd_default_class']}")
 
     print(f"Added parameters: {', '.join(added_parameters_list)}")
 
