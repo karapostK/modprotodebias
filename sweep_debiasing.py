@@ -33,47 +33,41 @@ def train_val_agent():
 
     print("----- Debiasing is over -----")
     print("----- Starting Final Attack -----")
+    # Probe is tested on the same seed of the debiasing method
+    # Refer to the ./conf/probe/probe_configs.py file for the configuration
+    probe_config = probe_configs[debias_conf['dataset']][debias_conf['group_type']]
 
-    if 'probe_seed_set' in debias_conf:
-        seeds = debias_conf['probe_seed_set']
-    else:
-        seeds = [debias_conf['seed']]  # Probe is tested on the same seed as the debiasing method.
+    # Additional options
+    probe_config = {
+        **probe_config,
+        # --- Others --- #
+        'device': 'cuda',
+        'seed': debias_conf['seed'],
+        'verbose': True,
+        'running_settings': {'eval_n_workers': 2, 'train_n_workers': 6},
+    }
 
-    for seed in seeds:
-        # Refer to the ./conf/probe/probe_configs.py file for the configuration
-        probe_config = probe_configs[debias_conf['dataset']][debias_conf['group_type']]
+    # Modular Weights
+    mod_weights = get_mod_weights_module(
+        how_use_deltas=debias_conf['how_use_deltas'],
+        latent_dim=debias_conf['latent_dim'],
+        n_delta_sets=n_delta_sets,
+        user_to_delta_set=user_to_delta_set,
+        use_clamping=debias_conf['use_clamping']
+    )
 
-        # Additional options
-        probe_config = {
-            **probe_config,
-            # --- Others --- #
-            'device': 'cuda',
-            'seed': seed,
-            'verbose': True,
-            'running_settings': {'eval_n_workers': 2, 'train_n_workers': 6},
-        }
+    mod_weights_state_dict = torch.load(
+        os.path.join(debias_conf['save_path'], 'last.pth'), map_location=probe_config['device']
+    )['mod_weights']
+    mod_weights.load_state_dict(mod_weights_state_dict)
+    mod_weights.requires_grad_(False)
 
-        # Modular Weights
-        mod_weights = get_mod_weights_module(
-            how_use_deltas=debias_conf['how_use_deltas'],
-            latent_dim=debias_conf['latent_dim'],
-            n_delta_sets=n_delta_sets,
-            user_to_delta_set=user_to_delta_set,
-            use_clamping=debias_conf['use_clamping']
-        )
-
-        mod_weights_state_dict = torch.load(
-            os.path.join(debias_conf['save_path'], 'last.pth'), map_location=probe_config['device']
-        )['mod_weights']
-        mod_weights.load_state_dict(mod_weights_state_dict)
-        mod_weights.requires_grad_(False)
-
-        train_probe(
-            probe_config=probe_config,
-            eval_type='test',
-            wandb_log_prefix=f'final_{seed}_',
-            mod_weights=mod_weights
-        )
+    train_probe(
+        probe_config=probe_config,
+        eval_type='test',
+        wandb_log_prefix=f'final_',
+        mod_weights=mod_weights
+    )
 
 
 train_val_agent()
