@@ -1,0 +1,77 @@
+# Yaml Sweep Configuration
+
+program: sweep_probe.py
+method: grid
+name: ml1m-initial-probes
+project: protofair
+entity: karapost
+
+parameters:
+  #### Fixed Hyperparameters ####
+  dataset:
+    value: ml1m
+
+  # Model Parameters #
+  inner_layers_config:
+    value: [ 128 ]
+  # Training Parameters #
+  train_batch_size:
+    value: 128
+  n_epochs:
+    value: 25
+
+  # Running Parameters #
+  eval_batch_size:
+    value: 32
+  device:
+    value: cuda
+  verbose:
+    value: True
+  running_settings:
+    parameters:
+      train_n_workers:
+        value: 6
+      eval_n_workers:
+        value: 3
+
+    #### Varying Hyperparameters ####
+
+  # Model Parameters #
+  # Training Parameters #
+  lr:
+    distribution: categorical
+    values:
+      - 1e-4
+      - 5e-4
+      - 1e-3
+  wd:
+    distribution: categorical
+    values:
+      - 1e-4
+      - 1e-3
+      - 1e-2
+  # Running Parameters #
+  seed:
+    distribution: categorical
+    values:
+      - 59
+      - 60
+      - 61
+  group_type:
+    distribution: categorical
+    values:
+      - 'gender'
+      - 'age'
+
+
+
+
+
+
+
+
+
+
+
+
+
