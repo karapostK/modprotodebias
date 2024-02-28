@@ -56,7 +56,7 @@ parameters:
   running_settings:
     parameters:
       train_n_workers:
-        value: 6
+        value: 4
       eval_n_workers:
         value: 2
 
