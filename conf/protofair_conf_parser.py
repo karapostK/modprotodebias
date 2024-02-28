@@ -4,7 +4,7 @@ DEF_EVAL_BATCH_SIZE = 32
 DEF_TRAIN_BATCH_SIZE = 128
 DEF_EVAL_NUM_WORKERS = 2
 DEF_TRAIN_NUM_WORKERS = 6
-DEF_INIT_STD = .1
+DEF_INIT_STD = .01
 DEF_ETA_MIN = 1e-6
 DEF_DELTA_ON = 'user'
 DEF_WD = 1e-5
@@ -105,6 +105,13 @@ def parse_conf(conf: dict, type_run: str) -> dict:
             if 'adv_n_heads' not in conf:
                 conf['adv_n_heads'] = 1
                 added_parameters_list.append(f"adv_n_heads={conf['adv_n_heads']}")
+            if 'user_updates_normalization' not in conf:
+                conf['user_updates_normalization'] = 'none'
+                added_parameters_list.append(f"user_updates_normalization={conf['user_updates_normalization']}")
+            else:
+                assert conf['user_updates_normalization'] in ['none', 'mean', 'max',
+                                                              'min'], "Unknown normalization method"
+
         elif conf['debiasing_method'] == 'mmd':
             if 'mmd_default_class' not in conf:
                 if conf['group_type'] == 'gender':

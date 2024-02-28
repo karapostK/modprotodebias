@@ -11,7 +11,8 @@ from conf.protofair_conf_parser import parse_conf
 from fair.fair_eval import evaluate
 from fair.neural_head import MultiHead
 from fair.utils import generate_log_str, get_rec_model, get_mod_weights_settings, \
-    get_dataloaders, get_user_group_data, get_evaluators, summarize, get_mod_weights_module
+    get_dataloaders, get_user_group_data, get_evaluators, summarize, get_mod_weights_module, get_users_gradient_scaling
+from train.gradient_scaling import GradientScalingLayer
 from train.rec_losses import RecSampledSoftmaxLoss
 from utilities.utils import reproducible
 from utilities.wandb_utils import fetch_best_in_sweep
@@ -85,6 +86,13 @@ def train_adversarial(debias_conf: dict):
         use_clamping=debias_conf['use_clamping']
     )
 
+    # Gradient Scaling Layer
+    user_gradient_scaling = get_users_gradient_scaling(
+        data_loaders['train'].dataset,
+        debias_conf['user_updates_normalization']
+    )
+    gs_layer = GradientScalingLayer(user_gradient_scaling)
+
     # Optimizer & Scheduler
     optimizer = torch.optim.AdamW(
         [
@@ -114,6 +122,7 @@ def train_adversarial(debias_conf: dict):
     rec_model.to(debias_conf['device'])
     mod_weights.to(debias_conf['device'])
     adv_head.to(debias_conf['device'])
+    gs_layer.to(debias_conf['device'])
 
     best_recacc_value = -torch.inf
     best_recacc_epoch = -1
@@ -142,6 +151,8 @@ def train_adversarial(debias_conf: dict):
 
             # Perturbing
             u_p = mod_weights(u_p, u_idxs)
+            # Possibly scaling the gradients
+            u_p = gs_layer(u_p, u_idxs)
 
             ### Rec Loss ###
             u_repr = u_p, u_other

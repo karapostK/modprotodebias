@@ -35,6 +35,7 @@ debias_conf = {
     'init_std': 0.01,
     'gradient_scaling': 1.,  # Ignored if debiasing_method == 'mmd'
     'adv_n_heads': 1,  # Ignored if debiasing_method == 'mmd'
+    'user_updates_normalization': 'none',  # 'none', 'mean', 'max', 'min'. Ignored if debiasing_method == 'mmd'
 
     # Learning Rates
     'lr_adv': 1e-3,  # Ignored if debiasing_method == 'mmd'

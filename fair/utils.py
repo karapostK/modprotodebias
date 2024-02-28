@@ -230,3 +230,35 @@ def generate_run_name(conf: dict, list_of_keys: List[str]):
     for key in list_of_keys:
         run_name += f'{key}_{conf[key]}_'
     return run_name
+
+
+def get_users_gradient_scaling(train_dataset, method: str = 'none'):
+    """
+    Returns the gradient scaling for each user
+    :param train_dataset: The training dataset
+    :param method: The method to use for the scaling. Can be 'mean', 'max', or 'min'. Default to none
+    - If mean, then users that have more interaction that the average user will have a smaller scaling factor while
+    users with fewer interactions will have a larger scaling factor.
+    - If max, the user with the most interactions will have a scaling factor of 1 and the rest will be scaled accordingly
+    (higher values).
+    - If min, the user with the least interactions will have a scaling factor of 1 and the rest will be scaled accordingly
+    (smaller values).
+    :return:
+    """
+    assert method in ['mean', 'max', 'min', 'none'], f'Unknown method for gradient scaling: {method}'
+
+    if method == 'none':
+        return torch.ones(train_dataset.n_users, dtype=torch.float32)
+    else:
+        train_mtx = train_dataset.sampling_matrix
+
+        n_user_updates = torch.tensor(train_mtx.sum(1).A1, dtype=torch.float32)
+        if method == 'mean':
+            n_user_updates = n_user_updates.mean() / n_user_updates
+        elif method == 'max':
+            n_user_updates = n_user_updates.max() / n_user_updates
+        elif method == 'min':
+            n_user_updates = n_user_updates.min() / n_user_updates
+        else:
+            raise ValueError(f'Unknown method for gradient scaling: {method}')
+        return n_user_updates
