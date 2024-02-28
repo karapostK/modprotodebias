@@ -1,0 +1,95 @@
+# Yaml Sweep Configuration
+
+program: sweep_debiasing.py
+method: grid
+name: age_ml1m_mmd
+project: protofair
+entity: karapost
+
+parameters:
+  #### Fixed Hyperparameters ####
+  dataset:
+    value: ml1m
+  group_type:
+    value: 'age' # gender or age
+  delta_on:
+    value: 'users'  # 'all', 'groups', 'users'
+
+  # Model Parameters #
+  inner_layers_config:
+    value: [ 128 ] # empty list for linear model
+  use_clamping:
+    value: False
+
+  # Training Parameters #
+  n_epochs:
+    value: 25
+
+  debiasing_method:
+    value: 'mmd' # 'adv' or 'mmd'
+  how_use_deltas:
+    value: 'multiply' # 'add' or 'multiply'
+  init_std:
+    value: 0.01
+  gradient_scaling:
+    value: 1
+
+  # Learning Rates
+  lr_deltas:
+    value: 5e-4
+  wd:
+    value: 1e-5
+  eta_min:
+    value: 1e-6
+
+  # Batch Sizes
+  train_batch_size:
+    value: 128
+  eval_batch_size:
+    value: 32
+
+  # Other
+  device:
+    value: cuda
+  verbose:
+    value: True
+  running_settings:
+    parameters:
+      train_n_workers:
+        value: 5
+      eval_n_workers:
+        value: 2
+
+    #### Varying Hyperparameters ####
+
+  # Model Parameters #
+  # Training Parameters #
+  lam:
+    distribution: categorical
+    values:
+      - .5
+      - 1
+      - 2
+      - 5
+      - 10
+      - 20
+  # Running Parameters #
+  seed:
+    distribution: categorical
+    values:
+      - 59
+      - 60
+      - 61
+
+
+
+
+
+
+
+
+
+
+
+
+
