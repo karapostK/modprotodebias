@@ -16,8 +16,6 @@ parameters:
     value: 'users'  # 'all', 'groups', 'users'
 
   # Model Parameters #
-  inner_layers_config:
-    value: [ 128 ] # empty list for linear model
   use_clamping:
     value: False
 
