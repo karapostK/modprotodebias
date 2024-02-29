@@ -219,7 +219,7 @@ def get_mod_weights_module(how_use_deltas: str, latent_dim: int, n_delta_sets: i
     return mod_weights
 
 
-def generate_run_name(conf: dict, list_of_keys: List[str]):
+def generate_run_name(conf: dict, list_of_keys: List[str], print_keys: bool = False):
     """
     Generate a run name based on the configuration and the keys to be included
     :param conf: Configuration dictionary
@@ -228,7 +228,11 @@ def generate_run_name(conf: dict, list_of_keys: List[str]):
     """
     run_name = ''
     for key in list_of_keys:
-        run_name += f'{key}_{conf[key]}_'
+        if print_keys:
+            run_name += f'{key}_{conf[key]}_'
+        else:
+            run_name += f'{conf[key]}_'
+
     return run_name
 
 
