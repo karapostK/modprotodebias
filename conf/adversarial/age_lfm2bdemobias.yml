@@ -1,0 +1,96 @@
+# Yaml Sweep Configuration
+
+program: sweep_debiasing.py
+method: grid
+name: age_lfm2bdemobias_adv
+project: protofair
+entity: karapost
+
+parameters:
+  #### Fixed Hyperparameters ####
+  dataset:
+    value: lfm2bdemobias
+  group_type:
+    value: 'age' # gender or age
+  delta_on:
+    value: 'users'  # 'all', 'groups', 'users'
+
+  # Model Parameters #
+  inner_layers_config:
+    value: [ 512 ]
+  use_clamping:
+    value: False
+
+  # Training Parameters #
+  n_epochs:
+    value: 25
+  lam:
+    value: 1
+  debiasing_method:
+    value: 'adv' # 'adv' or 'mmd'
+  how_use_deltas:
+    value: 'multiply' # 'add' or 'multiply'
+  init_std:
+    value: 0.01
+  gradient_scaling:
+    value: 1
+
+  # Learning Rates
+  lr_deltas:
+    value: 3e-5
+  lr_adv:
+    value: 1e-3
+  wd:
+    value: 1e-5
+  eta_min:
+    value: 1e-6
+
+  # Batch Sizes
+  train_batch_size:
+    value: 1024
+  eval_batch_size:
+    value: 32
+
+  # Other
+  device:
+    value: cuda
+  verbose:
+    value: True
+  running_settings:
+    parameters:
+      train_n_workers:
+        value: 5
+      eval_n_workers:
+        value: 2
+
+    #### Varying Hyperparameters ####
+
+  # Model Parameters #
+  adv_n_heads:
+    distribution: categorical
+    values:
+      - 10
+      - 5
+      - 3
+      - 1
+  # Training Parameters #
+  # Running Parameters #
+  seed:
+    distribution: categorical
+    values:
+      - 59
+      - 60
+      - 61
+
+
+
+
+
+
+
+
+
+
+
+
+
