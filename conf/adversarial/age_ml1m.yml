@@ -24,7 +24,8 @@ parameters:
   # Training Parameters #
   n_epochs:
     value: 25
-
+  lam:
+    value: 10
   debiasing_method:
     value: 'adv' # 'adv' or 'mmd'
   how_use_deltas:
@@ -71,15 +72,8 @@ parameters:
       - 1
       - 3
       - 5
-  # Training Parameters #
-  lam:
-    distribution: categorical
-    values:
-      - .5
-      - 1
-      - 2
-      - 5
       - 10
+  # Training Parameters #
   # Running Parameters #
   seed:
     distribution: categorical
