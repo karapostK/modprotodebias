@@ -14,16 +14,15 @@ from fair.utils import generate_log_str, get_rec_model, get_mod_weights_settings
     get_dataloaders, get_user_group_data, get_evaluators, summarize, get_mod_weights_module, get_users_gradient_scaling
 from train.gradient_scaling import GradientScalingLayer
 from train.rec_losses import RecSampledSoftmaxLoss
-from utilities.utils import reproducible
-from utilities.wandb_utils import fetch_best_in_sweep
+from utilities.utils import reproducible, fetch_rec_model
 
 
 def train_adversarial(debias_conf: dict):
     debias_conf = parse_conf(debias_conf, 'debiasing')
 
-    rec_conf = fetch_best_in_sweep(
+    rec_conf = fetch_rec_model(
         debias_conf['best_run_sweep_id'],
-        good_faith=True,
+        './'
     )
 
     # --- Preparing the Rec Model, Data & Evaluators --- #

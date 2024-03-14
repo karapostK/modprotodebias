@@ -1,10 +1,13 @@
 import functools
 import logging
+import os
 import random
 from datetime import datetime
 
 import numpy as np
 import torch
+
+from conf.conf_parser import parse_conf_file
 
 
 def generate_id(prefix=None, postfix=None):
@@ -54,3 +57,8 @@ class FunctionWrapper:
 
     def __repr__(self):
         return self.function.__repr__()
+
+
+def fetch_rec_model(model_id: str, path: str):
+    best_run_config = parse_conf_file(os.path.join(path, model_id, 'conf.yml'))
+    return best_run_config

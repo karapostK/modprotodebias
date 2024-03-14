@@ -12,8 +12,7 @@ from fair.mod_weights import ModularWeights
 from fair.neural_head import NeuralHead
 from fair.utils import generate_log_str, get_rec_model, get_dataloaders, \
     get_user_group_data, get_evaluators, summarize
-from utilities.utils import reproducible
-from utilities.wandb_utils import fetch_best_in_sweep
+from utilities.utils import reproducible, fetch_rec_model
 
 
 def train_probe(probe_config: dict,
@@ -25,9 +24,9 @@ def train_probe(probe_config: dict,
 
     probe_config = parse_conf(probe_config, 'probing')
     # --- Fetching the Best Run Configuration --- #
-    rec_conf = fetch_best_in_sweep(
+    rec_conf = fetch_rec_model(
         probe_config['best_run_sweep_id'],
-        good_faith=True,
+        './'
     )
 
     # --- Preparing the Rec Model, Data & Evaluators --- #
