@@ -1,4 +1,8 @@
+import json
+import os
 import warnings
+
+import yaml
 
 DEF_EVAL_BATCH_SIZE = 32
 DEF_TRAIN_BATCH_SIZE = 128
@@ -10,6 +14,20 @@ DEF_DELTA_ON = 'user'
 DEF_WD = 1e-5
 DEF_GRADIENT_SCALING = 1
 DEF_LAM_REC = 1.
+
+
+def parse_conf_file(conf_path: str) -> dict:
+    assert os.path.isfile(conf_path), f'Configuration File {conf_path} not found!'
+
+    with open(conf_path, 'r') as conf_file:
+        try:
+            print('Reading file as Yaml...')
+            conf = yaml.safe_load(conf_file)
+        except:
+            print('Reading file as Json...')
+            conf = json.load(conf_file)
+    print(' --- Configuration Loaded ---')
+    return conf
 
 
 def parse_conf(conf: dict, type_run: str) -> dict:
@@ -36,14 +54,14 @@ def parse_conf(conf: dict, type_run: str) -> dict:
     added_parameters_list = []
 
     assert 'dataset' in conf, "Dataset should be specified in the configuration file"
-    if 'best_run_sweep_id' not in conf:
+    if 'pre_trained_model_id' not in conf:
         if conf['dataset'] == 'ml1m':
-            conf['best_run_sweep_id'] = 'hsra1k6i'
+            conf['pre_trained_model_id'] = 'hsra1k6i'
         elif conf['dataset'] == 'lfm2bdemobias':
-            conf['best_run_sweep_id'] = 'sshfyfwu'
+            conf['pre_trained_model_id'] = 'sshfyfwu'
         else:
             raise ValueError(f"Unknown dataset: {conf['dataset']}")
-        added_parameters_list.append(f"best_run_sweep_id={conf['best_run_sweep_id']}")
+        added_parameters_list.append(f"pre_trained_model_id={conf['pre_trained_model_id']}")
     if 'latent_dim' not in conf:
         if conf['dataset'] == 'ml1m':
             conf['latent_dim'] = 42

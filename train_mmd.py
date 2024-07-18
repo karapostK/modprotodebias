@@ -12,16 +12,13 @@ from fair.mmd import MMD
 from fair.utils import get_rec_model, get_mod_weights_settings, \
     get_dataloaders, get_user_group_data, get_evaluators, get_mod_weights_module
 from train.rec_losses import RecSampledSoftmaxLoss
-from utilities.utils import reproducible, fetch_rec_model
+from utilities.utils import reproducible, fetch_rec_model_config
 
 
 def train_mmd(debias_conf: dict):
     debias_conf = parse_conf(debias_conf, 'debiasing')
 
-    rec_conf = fetch_rec_model(
-        debias_conf['best_run_sweep_id'],
-        './'
-    )
+    rec_conf = fetch_rec_model_config(debias_conf['pre_trained_model_id'])
 
     # --- Preparing the Rec Model, Data & Evaluators --- #
 

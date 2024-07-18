@@ -12,7 +12,7 @@ from fair.mod_weights import ModularWeights
 from fair.neural_head import NeuralHead
 from fair.utils import generate_log_str, get_rec_model, get_dataloaders, \
     get_user_group_data, get_evaluators, summarize
-from utilities.utils import reproducible, fetch_rec_model
+from utilities.utils import reproducible, fetch_rec_model_config
 
 
 def train_probe(probe_config: dict,
@@ -23,11 +23,9 @@ def train_probe(probe_config: dict,
     assert eval_type in ['val', 'test'], "eval_type must be either 'val' or 'test'"
 
     probe_config = parse_conf(probe_config, 'probing')
+
     # --- Fetching the Best Run Configuration --- #
-    rec_conf = fetch_rec_model(
-        probe_config['best_run_sweep_id'],
-        './'
-    )
+    rec_conf = fetch_rec_model_config(probe_config['pre_trained_model_id'])
 
     # --- Preparing the Rec Model, Data & Evaluators --- #
 

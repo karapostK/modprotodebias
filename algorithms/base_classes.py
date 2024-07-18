@@ -126,7 +126,7 @@ class SGDBasedRecommenderAlgorithm(RecommenderAlgorithm, ABC, nn.Module):
 
     def load_model_from_path(self, path: str):
         path = os.path.join(path, 'model.pth')
-        state_dict = torch.load(path)
+        state_dict = torch.load(os.path.expanduser(path))
         self.load_state_dict(state_dict)
         print('Model Loaded')
 
