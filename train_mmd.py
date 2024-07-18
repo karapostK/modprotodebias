@@ -6,7 +6,7 @@ from tqdm import tqdm
 from tqdm import trange
 
 import wandb
-from conf.protofair_conf_parser import parse_conf
+from conf.conf_parser import parse_conf
 from fair.fair_eval import evaluate
 from fair.mmd import MMD
 from fair.utils import get_rec_model, get_mod_weights_settings, \

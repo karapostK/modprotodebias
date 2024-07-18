@@ -6,7 +6,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from tqdm import trange
 
 import wandb
-from conf.protofair_conf_parser import parse_conf
+from conf.conf_parser import parse_conf
 from fair.fair_eval import evaluate
 from fair.mod_weights import ModularWeights
 from fair.neural_head import NeuralHead

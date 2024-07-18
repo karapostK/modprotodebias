@@ -7,7 +7,7 @@ from datetime import datetime
 import numpy as np
 import torch
 
-from conf.protofair_conf_parser import parse_conf_file
+from conf.conf_parser import parse_conf_file
 
 
 def generate_id(prefix=None, postfix=None):
