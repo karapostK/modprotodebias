@@ -3,7 +3,7 @@
 program: sweep_debiasing.py
 method: grid
 name: # TODO: Name of the Sweep
-project: fair_rec
+project: modprotobias
 entity: # TODO: Your username on Wandb
 
 parameters:

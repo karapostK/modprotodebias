@@ -3,8 +3,8 @@
 program: sweep_debiasing.py
 method: grid
 name: age_lfm2bdemobias_mmd
-project: protofair
-entity: karapost
+project: modprotobias
+entity: your_wandb_entitiy_name
 
 parameters:
   #### Fixed Hyperparameters ####

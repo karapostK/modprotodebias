@@ -3,8 +3,8 @@
 program: sweep_probe.py
 method: grid
 name: lfm2bdemobias-initial-probes
-project: protofair
-entity: karapost
+project: modprotobias
+entity: your_wandb_entitiy_name
 
 parameters:
   #### Fixed Hyperparameters ####

@@ -7,8 +7,8 @@ This repository contains the code and the settings for the submission "Modular D
 ### Environment
 
 - Install the environment with
-  `conda env create -f protodebias.yml`
-- Activate the environment with `conda activate protodebias`
+  `conda env create -f modprotodebias.yml`
+- Activate the environment with `conda activate modprotodebias`
 
 
 ### Data

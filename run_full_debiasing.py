@@ -10,7 +10,7 @@ from train_mmd import train_mmd
 from train_probe import train_probe
 from utilities.utils import generate_id
 
-WANDB_PROJECT = 'protodebias'
+WANDB_PROJECT = 'modprotodebias'
 
 run_id = generate_id()
 

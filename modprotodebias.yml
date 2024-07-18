@@ -1,4 +1,4 @@
-name: protodebias
+name: modprotobias
 channels:
   - defaults
   - pytorch
