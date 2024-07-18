@@ -22,3 +22,22 @@ class GRL_(Function):
 
 
 grl = GRL_.apply
+
+
+class GSL_(Function):
+    """
+    Gradient scaling functional
+    """
+
+    @staticmethod
+    def forward(ctx, input, grad_scaling):
+        # grad_scaling has shape (batch_size,)
+        ctx.grad_scaling = grad_scaling
+        return input
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        return ctx.grad_scaling.unsqueeze(-1) * grad_output, None
+
+
+gsl = GSL_.apply

@@ -3,7 +3,7 @@ import typing
 import torch
 from torch import nn
 
-from train.gradient_reversal import GradientReversalLayer
+from train.gradient_manipulation import GradientReversalLayer
 
 
 class NeuralHead(nn.Module):

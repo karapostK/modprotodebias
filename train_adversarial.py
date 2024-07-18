@@ -12,7 +12,7 @@ from fair.fair_eval import evaluate
 from fair.neural_head import MultiHead
 from fair.utils import generate_log_str, get_rec_model, get_mod_weights_settings, \
     get_dataloaders, get_user_group_data, get_evaluators, summarize, get_mod_weights_module, get_users_gradient_scaling
-from train.gradient_scaling import GradientScalingLayer
+from train.gradient_manipulation import GradientScalingLayer
 from train.rec_losses import RecSampledSoftmaxLoss
 from utilities.utils import reproducible, fetch_rec_model_config
 

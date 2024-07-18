@@ -1,6 +1,6 @@
 from torch.nn import Module
 
-from train.gradient_reversal_functional import grl
+from train.gradient_manipulation_functionals import gsl, grl
 
 
 class GradientReversalLayer(Module):
@@ -20,3 +20,20 @@ class GradientReversalLayer(Module):
 
     def extra_repr(self) -> str:
         return f"grad_scaling={self.grad_scaling}"
+
+
+class GradientScalingLayer(Module):
+    def __init__(self, grad_scaling_values):
+        super().__init__()
+        self.grad_scaling_values = grad_scaling_values
+
+    def forward(self, input, idxs):
+        scaling = self.grad_scaling_values[idxs]
+        return gsl(input, scaling)
+
+    def extra_repr(self) -> str:
+        return "grad_scaling"
+
+    def to(self, *args, **kwargs):
+        self.grad_scaling_values = self.grad_scaling_values.to(*args, **kwargs)
+        return super().to(*args, **kwargs)
